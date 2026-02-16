@@ -1,0 +1,4 @@
+CREATE SCHEMA [EDW]
+    AUTHORIZATION [dbo];
+GO
+

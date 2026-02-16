@@ -1,0 +1,4 @@
+CREATE SCHEMA [NZDW]
+    AUTHORIZATION [dbo];
+GO
+

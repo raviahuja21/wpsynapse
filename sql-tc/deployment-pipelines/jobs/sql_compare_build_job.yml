@@ -1,0 +1,26 @@
+parameters:
+  - name: environmentName
+    type: string
+  - name: serviceName
+    type: string
+  - name: locationCode
+    type: string
+
+jobs:
+  - job: compare_build_${{ parameters.serviceName }}_${{ parameters.locationCode }}_${{ parameters.environmentName }}
+    variables:
+      - template: ../variables/${{ parameters.environmentName }}.job.vars.yml
+    pool:
+      name: Default
+      vmImage: 'windows-latest'
+
+    steps:
+      - checkout: self
+      #build sql solution
+      - template: ../tasks/compare_sql_build_task.yml
+        parameters:
+          projectName: ${{ variables.projectName }}
+          AzureRMServiceConnection: ${{ variables.AzureRMServiceConnection }}
+          environmentName: ${{ parameters.environmentName }}
+          serverName: ${{ variables.serverName }}
+          databaseName: ${{ variables.databaseName }}

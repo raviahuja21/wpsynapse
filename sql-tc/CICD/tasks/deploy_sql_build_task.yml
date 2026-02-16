@@ -1,0 +1,44 @@
+parameters:
+  - name: projectname
+    type: string
+  - name: sqlProjectPath
+    type: string
+  - name: AzureRMServiceConnection
+    type: string
+  - name: environmentName
+    type: string
+  - name: serverName
+    type: string
+  - name: databaseName
+    type: string
+  - name: pool
+    type: string
+    default: 'Default'
+    displayName: 'Agent Pool'
+
+  - name: artifactName
+    type: string
+    default: 'dacpac-package'
+    displayName: 'Pipeline Artifact Name'
+
+
+steps:
+    # ✅ Download the published artifact from the previous job/stage
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download DACPAC Artifact 1'
+      inputs:
+        buildType: 'current'                              #   Download from the current pipeline run
+        artifactName: '${{ parameters.artifactName }}'                    #   Must match the name used in PublishPipelineArtifact
+        targetPath: '$(Pipeline.Workspace)/dacpac'
+
+    
+    - task: SqlAzureDacpacDeployment@1
+      displayName: "deploy ${{ parameters.environmentName }}_${{ parameters.projectName }}"
+      inputs:
+        azureSubscription: ${{ parameters.AzureRMServiceConnection }}
+        AuthenticationType: servicePrincipal
+        ServerName: ${{ parameters.serverName }}
+        DatabaseName: ${{ parameters.databaseName }}
+        DeploymentAction: Publish
+        DacpacFile: '$(Pipeline.Workspace)/dacpac/${{ parameters.projectname }}.dacpac'
+        AdditionalArguments: '/p:BlockOnPossibleDataLoss=False'

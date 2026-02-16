@@ -1,0 +1,4 @@
+CREATE SCHEMA [Workbench]
+    AUTHORIZATION [dbo];
+GO
+

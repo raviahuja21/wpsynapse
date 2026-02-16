@@ -1,0 +1,105 @@
+parameters:
+  - name: projectname
+    type: string
+  - name: sqlProjectPath
+    type: string
+    default: 'sqlproject_azure_dedicated_dp/sqlproject_azure_dedicated_dp.sqlproj'
+    displayName: 'Path to SQL Database Project file'
+  - name: buildConfiguration
+    type: string
+    default: 'Release'
+    displayName: 'Build Configuration (Debug or Release)'
+    values:
+      - Debug
+      - Release
+  - name: artifactName
+    type: string
+    default: 'dacpac-package'
+    displayName: 'Pipeline Artifact Name'
+
+steps:
+  - checkout: self
+  
+  - task: DotNetCoreCLI@2
+    displayName: 'Restore NuGet Packages'
+    inputs:
+      command: 'restore'
+      projects: '${{ parameters.sqlProjectPath }}' # need to define
+      feedsToUse: 'select'
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Build SQL Database Project'
+    inputs:
+      command: 'build'
+      projects: '${{ parameters.sqlProjectPath }}' # need to define
+      arguments: '--configuration ${{ parameters.buildConfiguration }} --no-restore'  # need to define
+
+  - task: PowerShell@2
+    displayName: 'Print DACPAC File Path'
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "=== Printing DACPAC File Path ===" -ForegroundColor Cyan
+
+        # Get project folder from sqlProjectPath
+        $projectDir = Split-Path "${{ parameters.sqlProjectPath }}"
+        $dacpacName = "${{ parameters.projectname }}.dacpac"
+        $buildConfiguration = "${{ parameters.buildConfiguration }}"
+
+        # Construct full DACPAC path
+        $dacpacPath = "$(Build.SourcesDirectory)/$projectDir/bin/$buildConfiguration/$dacpacName"
+
+        Write-Host "Expected DACPAC path: $dacpacPath" -ForegroundColor Yellow
+
+        if (Test-Path $dacpacPath) {
+            Write-Host "DACPAC file exists!" -ForegroundColor Green
+            Get-Item $dacpacPath | Select-Object FullName, Length, CreationTime
+        } else {
+            Write-Warning "DACPAC file not found at: $dacpacPath"
+        }
+        Write-Host "##vso[task.setvariable variable=dacpacPath]$dacpacPath"
+
+
+  - task: PowerShell@2
+    displayName: 'Verify DACPAC Build Output'
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "=== Verifying DACPAC Build Output ===" -ForegroundColor Cyan
+        # Get project folder from sqlProjectPath
+        $projectDir = Split-Path "${{ parameters.sqlProjectPath }}"
+        $dacpacName = "${{ parameters.projectname }}.dacpac"
+        $buildConfiguration = "${{ parameters.buildConfiguration }}"
+
+        $dacpacPath = "$(Build.SourcesDirectory)/$projectDir/bin/$buildConfiguration/$dacpacName"
+        
+        if (!(Test-Path $dacpacPath)) {
+            Write-Error "DACPAC file not found: $dacpacPath"
+            Write-Error "Build may have failed. Check build logs above."
+            exit 1
+        }
+        
+        Write-Host "DACPAC file found: $dacpacPath" -ForegroundColor Green
+        
+        # Get DACPAC file info
+        $dacpacInfo = Get-Item $dacpacPath
+        Write-Host "  Size: $($dacpacInfo.Length) bytes ($([Math]::Round($dacpacInfo.Length / 1KB, 2)) KB)" -ForegroundColor Gray
+        Write-Host "  Created: $($dacpacInfo.CreationTime)" -ForegroundColor Gray
+        Write-Host "  Last Modified: $($dacpacInfo.LastWriteTime)" -ForegroundColor Gray
+        
+        Write-Host "`n=== DACPAC Build Successful ===" -ForegroundColor Green
+  
+ #task: PublishPipelineArtifact@1
+    #displayName: 'Publish DACPAC Artifact'
+    #inputs:
+     # targetPath: '${{ variables.sqlProjectFolder }}/bin/${{ parameters.buildConfiguration }}'
+     # artifact: ${{ parameters.projectname }}_dacpac_file
+     # publishLocation: 'pipeline'
+
+  
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish DACPAC Artifact'
+    inputs:
+      targetPath: '$(dacpacPath)'        # <-- use the variable set in PowerShell
+      artifact: '${{ parameters.artifactName }}'
+      publishLocation: 'pipeline'

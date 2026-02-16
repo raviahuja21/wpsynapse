@@ -1,0 +1,4 @@
+CREATE SCHEMA [ControlIQ]
+    AUTHORIZATION [dbo];
+GO
+

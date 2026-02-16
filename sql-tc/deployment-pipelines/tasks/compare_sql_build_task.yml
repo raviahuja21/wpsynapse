@@ -1,0 +1,37 @@
+parameters:
+  - name: projectname
+    type: string
+  - name: AzureRMServiceConnection
+    type: string
+  - name: environmentName
+    type: string
+  - name: serverName
+    type: string
+  - name: databaseName
+    type: string
+steps:
+  - download: current
+    artifact: ${{ parameters.projectname }}_dacpac_file
+  - task: SqlAzureDacpacDeployment@1
+    displayName: "Create compare script(s)"
+    inputs:
+      azureSubscription: ${{ parameters.AzureRMServiceConnection }}
+      AuthenticationType: servicePrincipal
+      ServerName: ${{ parameters.serverName }}
+      DatabaseName: ${{ parameters.databaseName }}
+      DeploymentAction: Script
+      DacpacFile: '$(Pipeline.Workspace)\${{ parameters.projectname }}_dacpac_file\${{ parameters.projectname }}\${{ parameters.projectname }}.dacpac'
+      #DacpacFile: '$(Pipeline.Workspace)\${{ parameters.projectname }}_dacpac_file\${{ parameters.projectname }}\bin\Release\${{ parameters.projectname }}.dacpac'
+  - task: CopyFiles@2
+    displayName: "Copy ${{ parameters.environmentName }} Compare Script to: $(build.artifactstagingdirectory)"
+    condition: succeededOrFailed()
+    inputs:
+      SourceFolder: $(system.defaultworkingdirectory)
+      Contents: '**GeneratedOutputFiles\${{ parameters.databaseName }}_Script.sql**'
+      TargetFolder: $(build.artifactstagingdirectory)
+  - task: PublishBuildArtifacts@1
+    displayName: "Publish Artifact: drop"
+    condition: succeededOrFailed()
+    inputs:
+      PathtoPublish: $(build.artifactstagingdirectory)
+      ArtifactName: "${{ parameters.environmentName }}_compare_script"

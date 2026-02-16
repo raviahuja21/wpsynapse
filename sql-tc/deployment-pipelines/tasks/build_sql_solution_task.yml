@@ -1,0 +1,28 @@
+parameters:
+  - name: projectname
+    type: string
+
+steps:
+  - checkout: self
+  - task: VSBuild@1
+    displayName: Build solution ${{ parameters.projectname }} **\*.sqlproj
+    inputs:
+      solution: '**\*.sqlproj'
+      platform: $(BuildPlatform)
+      configuration:
+        $(BuildConfiguration)
+        # copy files to working directory
+  - task: CopyFiles@2
+    displayName: "copy files ${{ parameters.projectname }}_$(build.artifactstagingdirectory)"
+    condition: succeededOrFailed()
+    inputs:
+      SourceFolder: $(system.defaultworkingdirectory)
+      Contents: '**\bin\$(BuildConfiguration)\${{ parameters.projectname }}.dacpac**'
+      TargetFolder: $(build.artifactstagingdirectory)\${{ parameters.projectname }}
+      flattenFolders: true
+  - task: PublishBuildArtifacts@1
+    displayName: "Publish Artifact: drop ${{ parameters.projectname }}"
+    condition: succeededOrFailed()
+    inputs:
+      PathtoPublish: $(build.artifactstagingdirectory)
+      ArtifactName: "${{ parameters.projectname }}_dacpac_file"

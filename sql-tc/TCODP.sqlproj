@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build">
+  <Sdk Name="Microsoft.Build.Sql" Version="1.0.0" />
+  <PropertyGroup>
+    <Name>TCODP</Name>
+    <ProjectGuid>{CD737DEF-2F94-45C6-B947-6D1CF39B877F}</ProjectGuid>
+    <DSP>Microsoft.Data.Tools.Schema.Sql.SqlDwDatabaseSchemaProvider</DSP>
+    <ModelCollation>1033, CI</ModelCollation>
+  </PropertyGroup>
+  <ItemGroup>
+    <Build Remove="config\Tables\ETLConfigMapping.sql" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="config\Tables\ETLConfigSheetHistory.sql" />
+    <PostDeploy Include="Scripts\Script.PostDeploymentMain.sql" />
+    <None Include="Scripts\DeploymentScripts\Script.PostDeploymentELTControlFlow.sql">
+      <Build>false</Build>
+    </None>
+    <None Include="Scripts\DeploymentScripts\Script.PostDeploymentELTControlIQ_URLS.sql">
+      <Build>false</Build>
+    </None>
+    <None Include="Scripts\DeploymentScripts\Script.PostDeploymentELTLandingColumnMapping.sql">
+      <Build>false</Build>
+    </None>
+    <None Include="Scripts\DeploymentScripts\Script.PostDeploymentELTConfigSheet.sql">
+      <Build>false</Build>
+    </None>
+    <None Include="Scripts\DeploymentScripts\Script.PostDeploymentMainControl.sql">
+      <Build>false</Build>
+    </None>
+  </ItemGroup>
+  <Target Name="BeforeBuild">
+    <Delete Files="$(BaseIntermediateOutputPath)\project.assets.json" />
+  </Target>
+</Project>

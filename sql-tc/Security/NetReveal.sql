@@ -1,0 +1,4 @@
+CREATE SCHEMA [NetReveal]
+    AUTHORIZATION [dbo];
+GO
+

@@ -1,0 +1,21 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+  - none
+
+variables:
+  - name: BuildConfiguration
+    value: release
+  - name: BuildPlatform
+    value: any cpu
+name: $(date:yyyyMMdd)$(rev:.r)
+
+stages:
+  - template: sqldb.template.yml
+    parameters:
+      environmentObjects:
+        - environmentName: "dev"
+          locationCode: ["auea"]

@@ -1,0 +1,24 @@
+parameters:
+  - name: projectname
+    type: string
+  - name: AzureRMServiceConnection
+    type: string
+  - name: environmentName
+    type: string
+  - name: serverName
+    type: string
+  - name: databaseName
+    type: string
+steps:
+  - download: current
+    artifact: ${{ parameters.projectname }}_dacpac_file
+  - task: SqlAzureDacpacDeployment@1
+    displayName: "deploy ${{ parameters.environmentName }}_${{ parameters.projectname }}"
+    inputs:
+      azureSubscription: ${{ parameters.AzureRMServiceConnection }}
+      AuthenticationType: servicePrincipal
+      ServerName: ${{ parameters.serverName }}
+      DatabaseName: ${{ parameters.databaseName }}
+      DeploymentAction: Publish
+      DacpacFile: '$(Pipeline.Workspace)\${{ parameters.projectname }}_dacpac_file\${{ parameters.projectname }}\${{ parameters.projectname }}.dacpac'
+      #DacpacFile: '$(Pipeline.Workspace)\${{ parameters.projectname }}_dacpac_file\${{ parameters.projectname }}\bin\Release\${{ parameters.projectname }}.dacpac'
