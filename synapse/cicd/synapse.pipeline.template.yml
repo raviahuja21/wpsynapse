@@ -1,0 +1,32 @@
+parameters:
+  - name: environmentName
+    type: string
+    default: "dev"
+  - name: artifactName
+    type: string
+    default: "drop"
+  - name: sourceFolder
+    type: string
+    default: "dl-dev-synw-2"
+  - name: serviceConnection
+    type: string
+  - name: resourceGroup
+    type: string
+  - name: workspaceName
+    type: string
+  - name: overrideParams
+    type: string 
+
+stages:
+  - template: synapse_build_stage.yaml
+    parameters:
+      artifactName:  ${{ parameters.artifactName }}
+      sourceFolder:  ${{ parameters.sourceFolder }}
+  - template: synapse_deploy_stage.yaml
+    parameters:
+      artifactName: ${{ parameters.artifactName }}
+      environmentName: ${{ parameters.environmentName }}
+      serviceConnection: ${{ parameters.serviceConnection }}
+      resourceGroup: ${{ parameters.resourceGroup }}
+      workspaceName: ${{ parameters.workspaceName }} 
+      overrideParams: ${{ parameters.overrideParams }} 

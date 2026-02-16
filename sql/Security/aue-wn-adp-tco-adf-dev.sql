@@ -1,0 +1,4 @@
+CREATE USER [aue-wn-adp-tco-adf-dev]
+    WITH SID = 0x344E1B1F54FB9A498436328B170CBE1B, TYPE = E;
+GO
+

@@ -1,0 +1,14 @@
+# synapse.pipeline.test.yaml
+trigger:
+- none  # or feature branch while testing
+
+stages:
+- template: synapse.pipeline.template.yml
+  parameters:
+    environmentName: 'test'
+    artifactName: 'drop'
+    sourceFolder: 'dl-dev-synw-2'
+    serviceConnection: 'dl-DeploymentSpn-test'
+    resourceGroup: 'dl-Test-rg'
+    workspaceName: 'dl-test-synw-2'
+    overrideParams: '-ls_kv_d365_properties_typeProperties_baseUrl https://dl-test-kvt.vault.azure.net/ -LS_SYN_ADLS_properties_typeProperties_url https://dltestdatalakest2.dfs.core.windows.net/ -LS_SYN_D365_properties_typeProperties_server dl-test-synw-2-ondemand.sql.azuresynapse.net -LS_SYN_D365_AUDIT_properties_typeProperties_server dl-test-synw-ondemand.sql.azuresynapse.net -LS_SYN_DEDICATEDPOOL_properties_typeProperties_server dl-test-synw-2.sql.azuresynapse.net -trigger_audit_workbench_200_properties_PL_MAIN_STAGE_TRANSFORM_D365_AUDIT_parameters_D365SynapseLinkDBName dataverse_workbenchtes_unqa7de15273c57ee1194d3002248153 -trigger_reference_workbench_100_properties_PL_STAGE_D365_parameters_D365SynapseLinkDBName dataverse_workbenchdev_unq03d83e083c57ee11a382002248942 -trigger_pause_dedicated_pool_properties_pl_pause_dedicated_pool_parameters_subscriptionId d789ae8b-398d-4767-9cf1-381b49529b0d -trigger_pause_dedicated_pool_properties_pl_pause_dedicated_pool_parameters_resourceGroupName dl-test-rg -trigger_pause_dedicated_pool_properties_pl_pause_dedicated_pool_parameters_workspaces dl-test-synw-2 -trigger_resume_dedicatedpool_properties_pl_pause_dedicated_pool_parameters_subscriptionId d789ae8b-398d-4767-9cf1-381b49529b0d -trigger_resume_dedicatedpool_properties_pl_pause_dedicated_pool_parameters_resourceGroupName dl-test-rg -trigger_resume_dedicatedpool_properties_pl_pause_dedicated_pool_parameters_workspaces dl-test-synw-2 -trigger_audit_ice_201_properties_PL_MAIN_STAGE_TRANSFORM_D365_AUDIT_parameters_D365SynapseLinkDBName dataverse_testprod_orge034100f -trigger_reference_ice_101_properties_PL_STAGE_D365_parameters_D365SynapseLinkDBName dataverse_testprod_orge034100f -trigger_stage_ice_others_11_properties_PL_STAGE_D365_parameters_D365SynapseLinkDBName dataverse_testprod_orge034100f -LS_SYN_ADLS_AUDIT_properties_typeProperties_url https://dltestdatalakest.dfs.core.windows.net/'

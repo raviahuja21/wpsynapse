@@ -1,0 +1,18 @@
+parameters:
+  - name: environmentObjects
+    type: object
+  - name: serviceName
+    type: string
+
+stages:
+  - ${{ each environmentObject in parameters.environmentObjects }}:
+      - ${{ each locationCode in environmentObject.locationCode }}:
+          - stage: deploy_${{ parameters.serviceName }}_${{ locationCode }}_${{ environmentObject.environmentName }}
+            dependsOn: compare_${{ parameters.serviceName }}_${{ locationCode }}_${{ environmentObject.environmentName }}
+            condition: succeeded()
+            jobs:
+              - template: ../jobs/sql_deploy_stage_job.yml
+                parameters:
+                  environmentName: ${{ environmentObject.environmentName }}
+                  serviceName: ${{ parameters.serviceName }}
+                  locationCode: ${{ locationCode }}

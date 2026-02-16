@@ -1,0 +1,19 @@
+parameters:
+  - name: environmentObjects
+    type: object
+  - name: serviceName
+    type: string
+
+stages:
+  - ${{ each environmentObject in parameters.environmentObjects }}:
+      - ${{ each locationCode in environmentObject.locationCode }}:
+          - stage: compare_${{ parameters.serviceName }}_${{ locationCode }}_${{ environmentObject.environmentName }}
+            dependsOn: build_sql_${{ parameters.serviceName }}_${{ locationCode }}_${{ environmentObject.environmentName }}
+            # do not run compare if build fails
+            condition: succeeded()
+            jobs:
+              - template: ../jobs/sql_compare_build_job.yml
+                parameters:
+                  environmentName: ${{ environmentObject.environmentName }}
+                  serviceName: ${{ parameters.serviceName }}
+                  locationCode: ${{ locationCode }}

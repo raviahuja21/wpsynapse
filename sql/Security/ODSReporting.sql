@@ -1,0 +1,4 @@
+CREATE SCHEMA [ODSReporting]
+    AUTHORIZATION [dbo];
+GO
+

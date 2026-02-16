@@ -1,0 +1,20 @@
+parameters:
+  - name: environmentObjects
+    type: object
+  - name: serviceName
+    type: string
+    default: "sql"
+
+stages:
+  - template: stages/sql_build_stage.yml
+    parameters:
+      environmentObjects: ${{ parameters.environmentObjects }}
+      serviceName: ${{ parameters.serviceName }}
+  - template: stages/sql_compare_stage.yml
+    parameters:
+      environmentObjects: ${{ parameters.environmentObjects }}
+      serviceName: ${{ parameters.serviceName }}
+  - template: stages/sql_deploy_stage.yml
+    parameters:
+      environmentObjects: ${{ parameters.environmentObjects }}
+      serviceName: ${{ parameters.serviceName }}

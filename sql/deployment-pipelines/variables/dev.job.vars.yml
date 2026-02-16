@@ -1,0 +1,10 @@
+#assign values to variables as per your environments
+variables:
+  # this service connection is created in DevOps and used to authenticate to Azure
+  AzureRMServiceConnection: "dl-DeploymentSpn-dev"
+  # these are the environment specific settings that relate to the database being deployed.
+  #projectname and folder name should be same else tasks such as compare_sql_build_task.yml will be unable to find the exact path
+  projectName: "dynamics_dw" # this is the sql project name
+  #ensure you have the azure rm service connection app added as the external provider
+  serverName: "dl-dev-synw-2.sql.azuresynapse.net"
+  databaseName: "dedicatedsqlpool1"

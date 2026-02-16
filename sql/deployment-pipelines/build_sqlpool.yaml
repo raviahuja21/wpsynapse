@@ -1,0 +1,41 @@
+variables:
+  poolstagingarea: $(Build.ArtifactStagingDirectory)\poolstaging
+  BuildConfiguration: release
+  SQLPoolartifactname: AzureSQLPool
+  SQLPooldacpacfile: $(System.ArtifactsDirectory)\$(SQLPoolartifactname)\dynamics_dw.sqlproj
+
+
+trigger:
+- none
+
+
+pool:
+  vmImage: windows-2019
+
+
+stages:
+
+
+- stage: Pooldacpac
+  displayName: 'Build dacpac'
+
+
+  jobs:
+    - job: 'Builddacpac'
+      displayName: 'Build SQL Pool dacpac'
+      
+      steps:
+      - task: VSBuild@1
+        displayName: 'Builds the dacpac'
+        inputs:
+          solution: dynamics_dw.sqlproj
+          configuration: $(BuildConfiguration)
+
+
+      - task: PublishBuildArtifacts@1
+        displayName: 'Publishes dacpac as an artifact'
+        # Publishes the dacpac as part of an artifact within Azure DevOps
+        inputs:
+          PathtoPublish: 'bin\$(BuildConfiguration)'
+          ArtifactName: $(SQLPoolartifactname)
+          publishLocation: 'Container'

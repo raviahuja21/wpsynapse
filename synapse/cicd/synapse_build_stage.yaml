@@ -1,0 +1,33 @@
+parameters:
+  - name: artifactName
+    type: string
+    default: "drop"
+  - name: sourceFolder
+    type: string
+    default: "dl-dev-synw-2"
+
+stages:
+- stage: Build
+  displayName: 'Build Synapse Artifacts'
+  jobs:
+  - job: BuildJob
+    displayName: 'Build Synapse Template Artifact'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: CopyFiles@2
+      displayName: 'Copy Synapse Templates'
+      inputs:
+        SourceFolder: ${{ parameters.sourceFolder }}  # folder where templates exist
+        TargetFolder: '$(Build.ArtifactStagingDirectory)/ARM'
+
+    - script: |
+        echo "Listing contents of ARM directory:"
+        ls -R $(Build.ArtifactStagingDirectory)/ARM
+      displayName: 'List ARM folder contents'
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Synapse ARM Template'
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)'
+        artifact: ${{ parameters.artifactName }}

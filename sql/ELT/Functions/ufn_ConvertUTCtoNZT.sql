@@ -1,0 +1,9 @@
+CREATE FUNCTION [ELT].[ufn_ConvertUTCtoNZT] (@InputStr [DATETIME]) RETURNS DATETIME
+AS
+BEGIN
+    DECLARE @out DATETIME
+    SET @out = CONVERT(DATETIME, @InputStr AT TIME ZONE 'UTC' AT TIME ZONE 'New Zealand Standard Time')
+    RETURN(@out)
+END
+GO
+

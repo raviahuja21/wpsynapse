@@ -1,0 +1,60 @@
+# synapse_deploy_stage.yaml
+parameters:
+  - name: environmentName
+    type: string
+    default: "dev"
+  - name: artifactName
+    type: string
+    default: "drop"
+  - name: serviceConnection
+    type: string
+  - name: resourceGroup
+    type: string
+  - name: workspaceName
+    type: string
+  - name: overrideParams
+    type: string 
+
+stages:
+- stage: Deploy
+  displayName: 'Deploy Synapse via Extension'
+  dependsOn: Build
+  jobs:
+  - deployment: DeploySynapse
+    displayName: 'Synapse Extension Deployment'
+    environment: 'synapse_${{ parameters.environmentName }}'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: ${{ parameters.artifactName }}
+
+          # 🔻 Disable triggers before deployment
+
+          - task: AzureSynapseWorkspace.synapsecicd-deploy.toggle-trigger.toggle-triggers-dev@2
+            displayName: 'Disable Synapse Triggers'
+            inputs:
+              azureSubscription: '${{ parameters.serviceConnection }}'
+              ResourceGroupName: '${{ parameters.resourceGroup }}'
+              WorkspaceName: '${{ parameters.workspaceName }}'
+              ToggleOn: false
+          
+          - task: AzureSynapseWorkspace.synapsecicd-deploy.synapse-deploy.Synapse workspace deployment@2
+            displayName: 'Deploy Synapse Workspace: ${{ parameters.workspaceName }}'
+            inputs:
+              TemplateFile: '$(Pipeline.Workspace)/${{ parameters.artifactName }}/ARM/TemplateForWorkspace.json'
+              ParametersFile: '$(Pipeline.Workspace)/${{ parameters.artifactName }}/ARM/TemplateParametersForWorkspace.json'
+              azureSubscription: '${{ parameters.serviceConnection }}'
+              ResourceGroupName: '${{ parameters.resourceGroup }}'
+              TargetWorkspaceName: '${{ parameters.workspaceName }}'
+              OverrideArmParameters: '${{ parameters.overrideParams }}'
+              FailOnMissingOverrides: false
+         
+          - task: AzureSynapseWorkspace.synapsecicd-deploy.toggle-trigger.toggle-triggers-dev@2
+            displayName: 'Enable Synapse Triggers'
+            inputs:
+              azureSubscription: '${{ parameters.serviceConnection }}'
+              ResourceGroupName: '${{ parameters.resourceGroup }}'
+              WorkspaceName: '${{ parameters.workspaceName }}'
+              ToggleOn: true

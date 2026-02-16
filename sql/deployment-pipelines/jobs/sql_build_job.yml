@@ -1,0 +1,20 @@
+parameters:
+  - name: environmentName
+    type: string
+  - name: serviceName
+    type: string
+  - name: locationCode
+    type: string
+
+jobs:
+  - job: build_${{ parameters.serviceName }}_${{ parameters.locationCode }}_${{ parameters.environmentName }}
+    variables:
+      - template: ../variables/${{ parameters.environmentName }}.job.vars.yml
+    pool:
+      vmImage: windows-latest
+    steps:
+      - checkout: self
+      #build sql solution
+      - template: ../tasks/build_sql_solution_task.yml
+        parameters:
+          projectName: ${{ variables.projectName }}

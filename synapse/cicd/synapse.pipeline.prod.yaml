@@ -1,0 +1,14 @@
+# synapse.pipeline.prod.yaml
+trigger:
+- none  # or feature branch while proding
+
+stages:
+- template: synapse.pipeline.template.yml
+  parameters:
+    environmentName: 'prod'
+    artifactName: 'drop'
+    sourceFolder: 'dl-dev-synw-2'
+    serviceConnection: 'dl-DeploymentSpn-prod'
+    resourceGroup: 'dl-Prod-rg'
+    workspaceName: 'dl-prod-synw-2'
+    overrideParams: '-ls_kv_d365_properties_typeProperties_baseUrl https://dl-prod-kvt.vault.azure.net/ -LS_SYN_ADLS_properties_typeProperties_url https://dlproddatalakest2.dfs.core.windows.net/ -LS_SYN_D365_properties_typeProperties_server dl-prod-synw-2-ondemand.sql.azuresynapse.net -LS_SYN_D365_AUDIT_properties_typeProperties_server dl-prod-synw-ondemand.sql.azuresynapse.net -LS_SYN_DEDICATEDPOOL_properties_typeProperties_server dl-prod-synw-2.sql.azuresynapse.net -trigger_audit_workbench_200_properties_PL_MAIN_STAGE_TRANSFORM_D365_AUDIT_parameters_D365SynapseLinkDBName dataverse_workbench_unq71bf710b3d57ee1194d2002248e34 -trigger_reference_workbench_100_properties_PL_STAGE_D365_parameters_D365SynapseLinkDBName dataverse_workbench_unq71bf710b3d57ee1194d2002248e34 -trigger_pause_dedicated_pool_properties_pl_pause_dedicated_pool_parameters_subscriptionId 00085d8f-0d6c-48fe-80c3-33d995a3e8fe -trigger_pause_dedicated_pool_properties_pl_pause_dedicated_pool_parameters_resourceGroupName dl-Prod-rg -trigger_pause_dedicated_pool_properties_pl_pause_dedicated_pool_parameters_workspaces dl-prod-synw-2 -trigger_resume_dedicatedpool_properties_pl_pause_dedicated_pool_parameters_subscriptionId 00085d8f-0d6c-48fe-80c3-33d995a3e8fe -trigger_resume_dedicatedpool_properties_pl_pause_dedicated_pool_parameters_resourceGroupName dl-Prod-rg -trigger_resume_dedicatedpool_properties_pl_pause_dedicated_pool_parameters_workspaces dl-prod-synw-2 -trigger_audit_ice_201_properties_PL_MAIN_STAGE_TRANSFORM_D365_AUDIT_parameters_D365SynapseLinkDBName dataverse_wnzlprod_wnzl -trigger_reference_ice_101_properties_PL_STAGE_D365_parameters_D365SynapseLinkDBName dataverse_wnzlprod_wnzl -trigger_stage_ice_others_11_properties_PL_STAGE_D365_parameters_D365SynapseLinkDBName dataverse_wnzlprod_wnzl -trigger_ice_schema_drift_properties_PL_D365_SCHEMA_DRIFT_parameters_DBName dataverse_wnzlprod_wnzl -trigger_workbench_schema_drift_properties_PL_D365_SCHEMA_DRIFT_parameters_DBName dataverse_workbench_unq71b -LS_SYN_ADLS_AUDIT_properties_typeProperties_url https://dlproddatalakest.dfs.core.windows.net/'
