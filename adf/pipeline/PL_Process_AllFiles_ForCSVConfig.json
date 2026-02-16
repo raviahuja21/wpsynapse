@@ -1,0 +1,265 @@
+{
+	"name": "PL_Process_AllFiles_ForCSVConfig",
+	"properties": {
+		"activities": [
+			{
+				"name": "Get all files in folder",
+				"type": "GetMetadata",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_blob_csv_generic",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": {
+								"value": "@pipeline().parameters.FolderName",
+								"type": "Expression"
+							},
+							"first_row_as_header": "not_needed",
+							"delimiter": "not_needed",
+							"quote_character": "not_needed",
+							"blob_container": {
+								"value": "@pipeline().parameters.Drive",
+								"type": "Expression"
+							}
+						}
+					},
+					"fieldList": [
+						"childItems"
+					],
+					"storeSettings": {
+						"type": "AzureBlobStorageReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "DelimitedTextReadSettings"
+					}
+				}
+			},
+			{
+				"name": "Loop thorugh all files",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "List of Files to Process",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('List of Files to Process').output.value",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 5,
+					"activities": [
+						{
+							"name": "Process All CSV",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_Process_AllCSV",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"P_ConfigName": {
+										"value": "@pipeline().parameters.ConfigName",
+										"type": "Expression"
+									},
+									"P_DirName": {
+										"value": "@pipeline().parameters.FolderName",
+										"type": "Expression"
+									},
+									"P_FileName": {
+										"value": "@item().UnProcessFileName",
+										"type": "Expression"
+									},
+									"P_Drive": {
+										"value": "@pipeline().parameters.Drive",
+										"type": "Expression"
+									},
+									"P_MoveToArchive": {
+										"value": "@pipeline().parameters.MoveFileFlag",
+										"type": "Expression"
+									},
+									"P_SourceName": {
+										"value": "@pipeline().parameters.SourceName",
+										"type": "Expression"
+									},
+									"P_IsFirstRowHeader": {
+										"value": "@pipeline().parameters.IsFirstRowHeader",
+										"type": "Expression"
+									},
+									"P_Delimeter": {
+										"value": "@pipeline().parameters.Delimeter",
+										"type": "Expression"
+									},
+									"P_QuoteCharacter": {
+										"value": "@pipeline().parameters.QuoteCharacter",
+										"type": "Expression"
+									},
+									"P_NoOfLinesToSkip": {
+										"value": "@pipeline().parameters.NoOfLinesToSkip",
+										"type": "Expression"
+									},
+									"P_DestinationSchema": {
+										"value": "@pipeline().parameters.DestinationSchema",
+										"type": "Expression"
+									},
+									"P_DestinationTable": {
+										"value": "@pipeline().parameters.DestinationTable",
+										"type": "Expression"
+									},
+									"P_SchemaChangeFlag": {
+										"value": "@pipeline().parameters.SchemaChangeFlag",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "List of Files to Process",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Get all files in folder",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"sqlReaderStoredProcedureName": "[config].[sp_Get_CSVFilesToProcess]",
+						"storedProcedureParameters": {
+							"configName": {
+								"value": {
+									"value": "@pipeline().parameters.ConfigName",
+									"type": "Expression"
+								}
+							},
+							"JSON_text": {
+								"value": {
+									"value": "@string(activity('Get all files in folder').output.childItems)\r\n\r\n",
+									"type": "Expression"
+								}
+							},
+							"fileExtension": {
+								"value": {
+									"value": "@pipeline().parameters.FileExtension",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "config",
+							"TableName": "abc"
+						}
+					},
+					"firstRowOnly": false
+				}
+			}
+		],
+		"concurrency": 1,
+		"parameters": {
+			"FolderName": {
+				"type": "string",
+				"defaultValue": "03. Workflow Specialist\\AHT Stats\\Daily Reports"
+			},
+			"FilePatternName": {
+				"type": "string",
+				"defaultValue": "Average_Handling_Time_Report_"
+			},
+			"Drive": {
+				"type": "string",
+				"defaultValue": "protectiveservices"
+			},
+			"ConfigName": {
+				"type": "string",
+				"defaultValue": "AHT"
+			},
+			"MoveFileFlag": {
+				"type": "int",
+				"defaultValue": 1
+			},
+			"SourceName": {
+				"type": "string"
+			},
+			"IsFirstRowHeader": {
+				"type": "bool"
+			},
+			"Delimeter": {
+				"type": "string"
+			},
+			"QuoteCharacter": {
+				"type": "string"
+			},
+			"NoOfLinesToSkip": {
+				"type": "string"
+			},
+			"DestinationSchema": {
+				"type": "string"
+			},
+			"DestinationTable": {
+				"type": "string"
+			},
+			"SchemaChangeFlag": {
+				"type": "bool"
+			},
+			"FileExtension": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"varname": {
+				"type": "String"
+			},
+			"FileName": {
+				"type": "String"
+			},
+			"ProcessFileName": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "Occupancy Report"
+		},
+		"annotations": []
+	}
+}

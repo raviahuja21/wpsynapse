@@ -1,0 +1,55 @@
+{
+	"name": "df_handle_csv_schema_change",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_blob_dataflow_generic_csv",
+						"type": "DatasetReference"
+					},
+					"name": "SourceWithChangingSchema"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_blob_dataflow_generic_csv",
+						"type": "DatasetReference"
+					},
+					"name": "SinkModifiedFile"
+				}
+			],
+			"transformations": [
+				{
+					"name": "DropUnwantedColumns"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     skiplinecount as integer (2),",
+				"     file_name as string ('occupancy_data_protege_20250125_modified.csv')",
+				"}",
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     skipLines: ($skiplinecount)) ~> SourceWithChangingSchema",
+				"SourceWithChangingSchema select(mapColumn(",
+				"          each(match(instr(name,'_c')==0),",
+				"               trim(regexReplace(regexReplace($$,`[\\r]`,''),`[\\n]`,'')) = $$)",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> DropUnwantedColumns",
+				"DropUnwantedColumns sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     emptyLinesAsHeader: ($skiplinecount),",
+				"     partitionFileNames:[($file_name)],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 1,",
+				"     partitionBy('hash', 1)) ~> SinkModifiedFile"
+			]
+		}
+	}
+}

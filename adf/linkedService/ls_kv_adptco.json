@@ -1,0 +1,10 @@
+{
+	"name": "ls_kv_adptco",
+	"properties": {
+		"annotations": [],
+		"type": "AzureKeyVault",
+		"typeProperties": {
+			"baseUrl": "https://adptcodev.vault.azure.net/"
+		}
+	}
+}

@@ -1,0 +1,376 @@
+{
+	"name": "PL_NetReveal",
+	"properties": {
+		"activities": [
+			{
+				"name": "Run Stored SP on NetRevealDB",
+				"description": "Run Stored Procedure on Oracle NetRevealDB",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_netreveal_oracle",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "NonQuery",
+							"text": "BEGIN\n  NRUSER.UPDATEQUEUEDETAILS;\nEND;"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "Copy Queue_Dashboard_Output",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Run Stored SP on NetRevealDB",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "OdbcSource",
+						"queryTimeout": "02:00:00"
+					},
+					"sink": {
+						"type": "SqlDWSink",
+						"preCopyScript": "truncate table landing.NetReveal_Queue_Dashboard_Output",
+						"allowCopyCommand": true,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": true,
+					"stagingSettings": {
+						"linkedServiceName": {
+							"referenceName": "ls_blob_stage",
+							"type": "LinkedServiceReference"
+						},
+						"path": "default"
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_odbc_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"TableSchema": "NRUSER",
+							"TableName": "QUEUE_DASHBOARD_OUTPUT"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "landing",
+							"TableName": "NetReveal_Queue_Dashboard_Output"
+						}
+					}
+				]
+			},
+			{
+				"name": "Copy Queue_Dashboard_Output History",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Copy Queue_Dashboard_Output",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "OdbcSource",
+						"queryTimeout": "02:00:00"
+					},
+					"sink": {
+						"type": "SqlDWSink",
+						"preCopyScript": "truncate table landing.NetReveal_Queue_Dashboard_History",
+						"allowCopyCommand": true,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": true,
+					"stagingSettings": {
+						"linkedServiceName": {
+							"referenceName": "ls_blob_stage",
+							"type": "LinkedServiceReference"
+						},
+						"path": "default"
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_odbc_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"TableSchema": "NRUSER",
+							"TableName": "QUEUE_DASHBOARD_HISTORY"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "landing",
+							"TableName": "NetReveal_Queue_Dashboard_History"
+						}
+					}
+				]
+			},
+			{
+				"name": "Copy QUEUE_RAW_EXPRESSIONS",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Copy Queue_Dashboard_Output History",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "OdbcSource",
+						"queryTimeout": "02:00:00"
+					},
+					"sink": {
+						"type": "SqlDWSink",
+						"preCopyScript": "truncate table landing.NetReveal_QUEUE_RAW_EXPRESSIONS",
+						"allowCopyCommand": true,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": true,
+					"stagingSettings": {
+						"linkedServiceName": {
+							"referenceName": "ls_blob_stage",
+							"type": "LinkedServiceReference"
+						},
+						"path": "default"
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_odbc_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"TableSchema": "NRUSER",
+							"TableName": "QUEUE_RAW_EXPRESSIONS"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "landing",
+							"TableName": "NetReveal_QUEUE_RAW_EXPRESSIONS"
+						}
+					}
+				]
+			},
+			{
+				"name": "Copy WF_Queue_Subscription",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Copy QUEUE_RAW_EXPRESSIONS",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "OdbcSource",
+						"queryTimeout": "02:00:00"
+					},
+					"sink": {
+						"type": "SqlDWSink",
+						"preCopyScript": "truncate table landing.NetReveal_WF_Queue_Subscription",
+						"allowCopyCommand": true,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": true,
+					"stagingSettings": {
+						"linkedServiceName": {
+							"referenceName": "ls_blob_stage",
+							"type": "LinkedServiceReference"
+						},
+						"path": "default"
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_odbc_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"TableSchema": "NRUSER",
+							"TableName": "WF_QUEUE_SUBSCRIPTION"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "landing",
+							"TableName": "NetReveal_WF_Queue_Subscription"
+						}
+					}
+				]
+			},
+			{
+				"name": "Run SP to load in EDW",
+				"type": "Script",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [
+					{
+						"activity": "Copy WF_Queue_Subscription",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_tco_dp",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "NonQuery",
+							"text": "EXEC [NetReveal].[sp_EDW_Queue]"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "Copy Queue_Dashboard_Output_copy1",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Run Stored SP on NetRevealDB",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "OracleSource",
+						"partitionOption": "None",
+						"numberPrecision": 38,
+						"numberScale": 18,
+						"queryTimeout": "02:00:00"
+					},
+					"sink": {
+						"type": "SqlDWSink",
+						"preCopyScript": "truncate table landing.NetReveal_Queue_Dashboard_Output",
+						"allowCopyCommand": true,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": true,
+					"stagingSettings": {
+						"linkedServiceName": {
+							"referenceName": "ls_blob_stage",
+							"type": "LinkedServiceReference"
+						},
+						"path": "default"
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_Oracle",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "NRUSER",
+							"TableName": "QUEUE_DASHBOARD_OUTPUT"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "landing",
+							"TableName": "NetReveal_Queue_Dashboard_Output"
+						}
+					}
+				]
+			}
+		],
+		"folder": {
+			"name": "NetReveal Queue Management"
+		},
+		"annotations": []
+	}
+}

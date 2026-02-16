@@ -1,0 +1,46 @@
+{
+	"name": "ds_filemove",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_financial_crime_report_folder",
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"p_folder": {
+					"value": "@dataset().p_dir",
+					"type": "Expression"
+				}
+			}
+		},
+		"parameters": {
+			"p_dir": {
+				"type": "string"
+			},
+			"p_folder": {
+				"type": "string"
+			},
+			"p_file": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "FileServerLocation",
+				"fileName": {
+					"value": "@dataset().p_file",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@concat(dataset().p_dir,dataset().p_folder)",
+					"type": "Expression"
+				}
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": []
+	}
+}

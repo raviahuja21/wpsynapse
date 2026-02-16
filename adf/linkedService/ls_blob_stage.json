@@ -1,0 +1,15 @@
+{
+	"name": "ls_blob_stage",
+	"properties": {
+		"annotations": [],
+		"type": "AzureBlobStorage",
+		"typeProperties": {
+			"serviceEndpoint": "https://adptcodev.blob.core.windows.net/",
+			"accountKind": "StorageV2"
+		},
+		"connectVia": {
+			"referenceName": "IR-Job1",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

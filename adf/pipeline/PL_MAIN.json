@@ -1,0 +1,546 @@
+{
+	"name": "PL_MAIN",
+	"properties": {
+		"activities": [
+			{
+				"name": "ForEachTablesToLoad",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "GetTablesToLoad",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('GetTablesToLoad').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Switch1",
+							"type": "Switch",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"on": {
+									"value": "@item().SourceSystemType",
+									"type": "Expression"
+								},
+								"cases": [
+									{
+										"value": "Oracle",
+										"activities": [
+											{
+												"name": "CopySourceToSink_Oracle",
+												"type": "Copy",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.02:00:00",
+													"retry": 2,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [
+													{
+														"name": "Destination",
+														"value": "@{item().TargetTableSchemaName}.@{'item().TargetTableName'}"
+													},
+													{
+														"name": "Source",
+														"value": "@item().SourceQuery"
+													},
+													{
+														"name": "IncrementalLoad",
+														"value": "@item().IncrementalLoad"
+													}
+												],
+												"typeProperties": {
+													"source": {
+														"type": "OdbcSource",
+														"query": {
+															"value": "@item().SourceQuery",
+															"type": "Expression"
+														},
+														"queryTimeout": "02:00:00"
+													},
+													"sink": {
+														"type": "SqlDWSink",
+														"preCopyScript": {
+															"value": "@if(equals(item().IncrementalLoad,true), concat('TRUNCATE TABLE [', item().TargetTableSchemaName, '].[', item().TargetTableName, ']'), '')\n",
+															"type": "Expression"
+														},
+														"writeBehavior": "Insert",
+														"sqlWriterUseTableLock": true,
+														"tableOption": "autoCreate",
+														"disableMetricsCollection": false
+													},
+													"enableStaging": false,
+													"translator": {
+														"type": "TabularTranslator",
+														"typeConversion": true,
+														"typeConversionSettings": {
+															"allowDataTruncation": true,
+															"treatBooleanAsNumber": false
+														}
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "ds_generic_odbc_odsp",
+														"type": "DatasetReference",
+														"parameters": {
+															"P_Schema": "A",
+															"P_Table": "A"
+														}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "ds_synapse_generic_table",
+														"type": "DatasetReference",
+														"parameters": {
+															"SchemaName": {
+																"value": "@item().TargetTableSchemaName",
+																"type": "Expression"
+															},
+															"TableName": {
+																"value": "@item().TargetTableName",
+																"type": "Expression"
+															}
+														}
+													}
+												]
+											},
+											{
+												"name": "CopyDataAppendLogsOnSuccess_copy1",
+												"type": "AppendVariable",
+												"dependsOn": [
+													{
+														"activity": "CopySourceToSink_Oracle",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "TableLogs",
+													"value": {
+														"value": "@replace(\n    replace(\n        replace(\n            replace(\n                replace(\n                    replace(\n                        replace(\n                            variables('TableLogTemplate'),\n                            '{ELTControlID}', string(item().ELTControlID)\n                        ),\n                        '{ProcessName}', concat('Copy_', item().TargetTableName)\n                    ),\n                    '{Completed}', '1'\n                ),\n                '{ELTRowCount}', string(activity('CopySourceToSink_Oracle').output.rowsCopied)\n            ),\n            '{ELTInsertCount}', string(activity('CopySourceToSink_Oracle').output.rowsCopied)\n        ),\n        '{StartTime}', activity('CopySourceToSink_Oracle').output.executionDetails[0].start\n    ),\n    '{EndTime}', utcNow()\n)\n",
+														"type": "Expression"
+													}
+												}
+											},
+											{
+												"name": "CopyDataAppendLogsOnFailure_copy1",
+												"type": "AppendVariable",
+												"dependsOn": [
+													{
+														"activity": "CopySourceToSink_Oracle",
+														"dependencyConditions": [
+															"Failed"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "TableLogs",
+													"value": {
+														"value": "@replace(\n    replace(\n        replace(\n            replace(\n                replace(\n                    replace(\n                        variables('TableLogTemplate'),\n                        '{ELTControlID}', string(item().ELTControlID)\n                    ),\n                    '{ProcessName}', concat('Copy_', item().TargetTableName)\n                ),\n                '{Completed}', '0'\n            ),\n            '{ErrorMessage}', activity('CopySourceToSink_Oracle').Error.Message\n        ),\n        '{EndTime}', utcNow()\n    ),\n    '{StartTime}', activity('CopySourceToSink_Oracle').output.executionDetails[0].start\n)\n",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									},
+									{
+										"value": "ADLS",
+										"activities": [
+											{
+												"name": "CopySourceToSink_blob",
+												"type": "Copy",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.02:00:00",
+													"retry": 2,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [
+													{
+														"name": "Destination",
+														"value": "@{item().TargetTableSchemaName}.@{'item().TargetTableName'}"
+													},
+													{
+														"name": "Source",
+														"value": "@item().SourceQuery"
+													}
+												],
+												"typeProperties": {
+													"source": {
+														"type": "AzureTableSource",
+														"azureTableSourceQuery": {
+															"value": "@item().IncrementalClauseQuery",
+															"type": "Expression"
+														},
+														"azureTableSourceIgnoreTableNotFound": false
+													},
+													"sink": {
+														"type": "SqlDWSink",
+														"preCopyScript": {
+															"value": "@if(equals(item().IncrementalLoad, 0), concat('TRUNCATE TABLE [', item().TargetTableSchemaName, '].[', item().TargetTableName, ']'), '')\n",
+															"type": "Expression"
+														},
+														"writeBehavior": "Insert",
+														"sqlWriterUseTableLock": true,
+														"tableOption": "autoCreate",
+														"disableMetricsCollection": false
+													},
+													"enableStaging": false,
+													"translator": {
+														"type": "TabularTranslator",
+														"typeConversion": true,
+														"typeConversionSettings": {
+															"allowDataTruncation": true,
+															"treatBooleanAsNumber": false
+														}
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "ds_table_cop",
+														"type": "DatasetReference"
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "ds_synapse_generic_table",
+														"type": "DatasetReference",
+														"parameters": {
+															"SchemaName": {
+																"value": "@item().TargetTableSchemaName",
+																"type": "Expression"
+															},
+															"TableName": {
+																"value": "item().TargetTableName",
+																"type": "Expression"
+															}
+														}
+													}
+												]
+											},
+											{
+												"name": "CopyDataAppendLogsOnSuccess",
+												"type": "AppendVariable",
+												"dependsOn": [
+													{
+														"activity": "CopySourceToSink_blob",
+														"dependencyConditions": [
+															"Succeeded"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "TableLogs",
+													"value": {
+														"value": "@replace(\n    replace(\n        replace(\n            replace(\n                replace(\n                    replace(\n                        replace(\n                            variables('TableLogTemplate'),\n                            '{ELTControlID}', string(item().ELTControlID)\n                        ),\n                        '{ProcessName}', concat('Copy_', item().TargetTableName)\n                    ),\n                    '{Completed}', '1'\n                ),\n                '{ELTRowCount}', string(activity('CopySourceToSink_blob').output.rowsCopied)\n            ),\n            '{ELTInsertCount}', string(activity('CopySourceToSink_blob').output.rowsCopied)\n        ),\n        '{StartTime}', activity('CopySourceToSink_blob').output.executionDetails[0].start\n    ),\n    '{EndTime}', utcNow()\n)\n",
+														"type": "Expression"
+													}
+												}
+											},
+											{
+												"name": "CopyDataAppendLogsOnFailure",
+												"type": "AppendVariable",
+												"dependsOn": [
+													{
+														"activity": "CopySourceToSink_blob",
+														"dependencyConditions": [
+															"Failed"
+														]
+													}
+												],
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "TableLogs",
+													"value": {
+														"value": "@replace(\n    replace(\n        replace(\n            replace(\n                replace(\n                    replace(\n                        variables('TableLogTemplate'),\n                        '{ELTControlID}', string(item().ELTControlID)\n                    ),\n                    '{ProcessName}', concat('Copy_', item().TargetTableName)\n                ),\n                '{Completed}', '0'\n            ),\n            '{ErrorMessage}', activity('CopySourceToSink_blob').Error.Message\n        ),\n        '{EndTime}', utcNow()\n    ),\n    '{StartTime}', activity('CopySourceToSink_blob').output.executionDetails[0].start\n)\n",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "SetTableLogString",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "ForEachTablesToLoad",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "TableLogString",
+					"value": {
+						"value": "@string(variables('TableLogs'))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "UpdateProcessLogs",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "SetTableLogString",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.01:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"sqlReaderStoredProcedureName": "[ELT].[UpdateProcessLog]",
+						"storedProcedureParameters": {
+							"logjson": {
+								"type": "String",
+								"value": {
+									"value": "@string(variables('TableLogs'))",
+									"type": "Expression"
+								}
+							},
+							"PipelineID": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								}
+							},
+							"PipelineName": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().Pipeline",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "A",
+							"TableName": "A"
+						}
+					},
+					"firstRowOnly": true
+				}
+			},
+			{
+				"name": "IfHasError",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "UpdateProcessLogs",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@not(greater(activity('UpdateProcessLogs').output.firstRow.ErrorRowCount,0))",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "ExPLNotifications",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_Notifications",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"PipelineRunId": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"PipelineName": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"PipelineDuration": {
+										"value": "@string(activity('UpdateProcessLogs').output.firstRow.TotalRunDuration)",
+										"type": "Expression"
+									},
+									"ErrorCount": {
+										"value": "@activity('UpdateProcessLogs').output.firstRow.ErrorRowCount",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "ExTransform",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_TRANSFORM",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"SourceSystem": {
+										"value": "@pipeline().parameters.SourceSystem",
+										"type": "Expression"
+									},
+									"FlowType": "Transform",
+									"ADFProcessID": {
+										"value": "@pipeline().parameters.ADFProcessID",
+										"type": "Expression"
+									},
+									"PipelineID": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "GetTablesToLoad",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.01:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"sqlReaderStoredProcedureName": "[ELT].[GetTablesToLoadCOP]",
+						"storedProcedureParameters": {
+							"SourceSystem": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().parameters.SourceSystem",
+									"type": "Expression"
+								}
+							},
+							"FlowType": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().parameters.FlowType",
+									"type": "Expression"
+								}
+							},
+							"ADFProcessID": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().parameters.ADFProcessID",
+									"type": "Expression"
+								}
+							},
+							"PipelineID": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_syn_dw_query",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			}
+		],
+		"parameters": {
+			"SourceSystem": {
+				"type": "string",
+				"defaultValue": "NZDW_ODSP"
+			},
+			"FlowType": {
+				"type": "string",
+				"defaultValue": "Extract"
+			},
+			"ADFProcessID": {
+				"type": "string",
+				"defaultValue": "101"
+			}
+		},
+		"variables": {
+			"TableLogs": {
+				"type": "Array"
+			},
+			"TableLogString": {
+				"type": "String"
+			},
+			"TableLogTemplate": {
+				"type": "String",
+				"defaultValue": "{   \"StartTime\": \"{StartTime}\",   \"EndTime\": \"{EndTime}\",   \"ProcessName\":\"{ProcessName}\",   \"ELTRowCount\": \"{ELTRowCount}\",   \"ELTErrorCount\": \"{ELTErrorCount}\",   \"ELTInsertCount\": \"{ELTInsertCount}\",   \"ELTUpdateCount\": \"{ELTUpdateCount}\",   \"ELTDeleteCount\": \"{ELTDeleteCount}\",   \"Completed\": \"{Completed}\",   \"TotalSourceRecords\": \"{TotalSourceRecords}\",   \"TotalTargetRecords\": \"{TotalSourceRecords}\",   \"ErrorMessage\": \"{ErrorMessage}\",   \"ELTControlID\": \"{ELTControlID}\",   \"LoadType\": \"{LoadType}\" }"
+			}
+		},
+		"folder": {
+			"name": "ELT"
+		},
+		"annotations": []
+	}
+}

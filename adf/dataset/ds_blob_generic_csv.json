@@ -1,0 +1,38 @@
+{
+	"name": "ds_blob_generic_csv",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_blob_stage",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"FolderName": {
+				"type": "string"
+			},
+			"FileName": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"fileName": {
+					"value": "@dataset().FileName",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@dataset().FolderName",
+					"type": "Expression"
+				},
+				"container": "tco-fincrime-netrevieal-excel-dev"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": []
+	}
+}

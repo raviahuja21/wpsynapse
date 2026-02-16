@@ -1,0 +1,12 @@
+{
+	"name": "shir-adp-elz-tco",
+	"properties": {
+		"type": "SelfHosted",
+		"typeProperties": {
+			"linkedInfo": {
+				"resourceId": "/subscriptions/39c8b322-2966-4c07-a63c-3bd8757e5e63/resourcegroups/t3-syd-adp-core-dev-arg/providers/Microsoft.DataFactory/factories/aue-wn-adp-core-adf-dev/integrationruntimes/nz8038sprev2202-shir-adp-elz-parent",
+				"authorizationType": "Rbac"
+			}
+		}
+	}
+}

@@ -1,0 +1,132 @@
+{
+	"name": "PL_Handle_ChangingSchema",
+	"properties": {
+		"activities": [
+			{
+				"name": "Data flow1",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "df_handle_csv_schema_change",
+						"type": "DataFlowReference",
+						"parameters": {
+							"skiplinecount": {
+								"value": "@pipeline().parameters.skiplinecount",
+								"type": "Expression"
+							},
+							"file_name": {
+								"value": "'@{pipeline().parameters.file_name}'",
+								"type": "Expression"
+							}
+						},
+						"datasetParameters": {
+							"SourceWithChangingSchema": {
+								"folder_path": {
+									"value": "@pipeline().parameters.folder_path",
+									"type": "Expression"
+								},
+								"first_row_as_header": {
+									"value": "@pipeline().parameters.firstrowasheader",
+									"type": "Expression"
+								},
+								"delimeter": {
+									"value": "@pipeline().parameters.delimiter",
+									"type": "Expression"
+								},
+								"quote_character": {
+									"value": "@pipeline().parameters.quote_character",
+									"type": "Expression"
+								},
+								"blob_container": {
+									"value": "@pipeline().parameters.blob_container",
+									"type": "Expression"
+								},
+								"file_name": {
+									"value": "@pipeline().parameters.file_name",
+									"type": "Expression"
+								}
+							},
+							"SinkModifiedFile": {
+								"folder_path": {
+									"value": "@pipeline().parameters.folder_path",
+									"type": "Expression"
+								},
+								"first_row_as_header": {
+									"value": "@pipeline().parameters.firstrowasheader",
+									"type": "Expression"
+								},
+								"delimeter": {
+									"value": "@pipeline().parameters.delimiter",
+									"type": "Expression"
+								},
+								"quote_character": {
+									"value": "@pipeline().parameters.quote_character",
+									"type": "Expression"
+								},
+								"blob_container": {
+									"value": "@pipeline().parameters.blob_container",
+									"type": "Expression"
+								},
+								"file_name": {
+									"value": "@pipeline().parameters.file_name",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					"integrationRuntime": {
+						"referenceName": "IR-Job1",
+						"type": "IntegrationRuntimeReference"
+					},
+					"traceLevel": "Coarse"
+				}
+			}
+		],
+		"parameters": {
+			"folder_path": {
+				"type": "string",
+				"defaultValue": "occupancy_data_protege"
+			},
+			"blob_container": {
+				"type": "string",
+				"defaultValue": "protectiveservices"
+			},
+			"firstrowasheader": {
+				"type": "bool",
+				"defaultValue": false
+			},
+			"delimiter": {
+				"type": "string",
+				"defaultValue": ","
+			},
+			"quote_character": {
+				"type": "string",
+				"defaultValue": "\""
+			},
+			"file_name": {
+				"type": "string",
+				"defaultValue": "occupancy_data_protege_20250125.csv"
+			},
+			"skiplinecount": {
+				"type": "int",
+				"defaultValue": 2
+			},
+			"row_delimiter": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Occupancy Report"
+		},
+		"annotations": []
+	}
+}

@@ -1,0 +1,15 @@
+{
+	"name": "ds_table_cop",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_tablestorage_cop",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureTable",
+		"schema": [],
+		"typeProperties": {
+			"tableName": "coptransactions"
+		}
+	}
+}

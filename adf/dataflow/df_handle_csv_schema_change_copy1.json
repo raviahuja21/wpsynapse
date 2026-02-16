@@ -1,0 +1,79 @@
+{
+	"name": "df_handle_csv_schema_change_copy1",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_blob_dataflow_generic_csv",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_blob_csv_generic",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "surrogateKey1"
+				},
+				{
+					"name": "derivedColumn1"
+				},
+				{
+					"name": "split1"
+				},
+				{
+					"name": "derivedColumn2"
+				},
+				{
+					"name": "union1"
+				},
+				{
+					"name": "select1"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     skiplinecount as integer (2),",
+				"     file_name as string ('occupancy_data_protege_20250125_modified.csv')",
+				"}",
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false,",
+				"     skipLines: (2\r",
+				"/*$skiplinecount*/\r",
+				")) ~> source1",
+				"source1 keyGenerate(output(RowNumber as long),",
+				"     startAt: 1L,",
+				"     stepValue: 1L) ~> surrogateKey1",
+				"split1@HeaderRow derive(each(match(true()), $$ = iif(isNull($$),toString($0),replace(toString($$), '_', '')))) ~> derivedColumn1",
+				"surrogateKey1 split(RowNumber == 1,",
+				"     disjoint: false) ~> split1@(HeaderRow, RestOfRows)",
+				"split1@RestOfRows derive(each(match(true()), $$ = toString($$))) ~> derivedColumn2",
+				"derivedColumn1, derivedColumn2 union(byName: false)~> union1",
+				"union1 select(mapColumn(",
+				"          each(match(name!='RowNumber'))",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> select1",
+				"select1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     emptyLinesAsHeader: ($skiplinecount),",
+				"     partitionFileNames:[($file_name)],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     saveOrder: 1,",
+				"     partitionBy('hash', 1)) ~> sink1"
+			]
+		}
+	}
+}

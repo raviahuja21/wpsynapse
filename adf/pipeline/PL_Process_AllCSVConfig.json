@@ -1,0 +1,235 @@
+{
+	"name": "PL_Process_AllCSVConfig",
+	"properties": {
+		"activities": [
+			{
+				"name": "ETL to Process",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "config",
+							"TableName": "vw_ETLCSVConfig"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Loop through all ETLs",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "ETL to Process",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('ETL to Process').output.value",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Process files for config",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_Process_AllFiles_ForCSVConfig",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"FolderName": {
+										"value": "@item().ConfigLocation",
+										"type": "Expression"
+									},
+									"FilePatternName": {
+										"value": "@item().ConfigFileName",
+										"type": "Expression"
+									},
+									"Drive": {
+										"value": "@item().Drive",
+										"type": "Expression"
+									},
+									"ConfigName": {
+										"value": "@item().ConfigName",
+										"type": "Expression"
+									},
+									"MoveFileFlag": {
+										"value": "@if(item().ReProcessFlag,0,pipeline().parameters.MoveFileFlag)",
+										"type": "Expression"
+									},
+									"SourceName": {
+										"value": "@item().SourceName",
+										"type": "Expression"
+									},
+									"IsFirstRowHeader": {
+										"value": "@item().IsFirstRowHeader",
+										"type": "Expression"
+									},
+									"Delimeter": {
+										"value": "@item().Delimiter",
+										"type": "Expression"
+									},
+									"QuoteCharacter": {
+										"value": "@item().QuoteCharacter",
+										"type": "Expression"
+									},
+									"NoOfLinesToSkip": {
+										"value": "@item().NoOfLinesToSkip",
+										"type": "Expression"
+									},
+									"DestinationSchema": {
+										"value": "@item().DestinationSchema",
+										"type": "Expression"
+									},
+									"DestinationTable": {
+										"value": "@item().DestinationTableName",
+										"type": "Expression"
+									},
+									"SchemaChangeFlag": {
+										"value": "@item().SchemaChangeFlag",
+										"type": "Expression"
+									},
+									"FileExtension": {
+										"value": "@item().FileExtension",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "Stored Procedure to Copy from landing View to EDW",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "Process files for config",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.00:10:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[EDW].[LoadLandingViewToEDW]",
+								"storedProcedureParameters": {
+									"LandingSchema": {
+										"value": "stg",
+										"type": "String"
+									},
+									"LandingView": {
+										"value": {
+											"value": "@concat('vw_',item().DestiNationTableName)",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"EDWSchema": {
+										"value": "EDW",
+										"type": "String"
+									},
+									"EDWTable": {
+										"value": {
+											"value": "@item().DestiNationTableName",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_tco_dp",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "truncate landing table",
+							"type": "Script",
+							"dependsOn": [
+								{
+									"activity": "Stored Procedure to Copy from landing View to EDW",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.00:10:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "ls_tco_dp",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "Query",
+										"text": {
+											"value": "@concat('truncate table ',item().DestinationSchema,'.',item().DestinationTableName)",
+											"type": "Expression"
+										}
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00"
+							}
+						}
+					]
+				}
+			}
+		],
+		"concurrency": 1,
+		"parameters": {
+			"MoveFileFlag": {
+				"type": "int",
+				"defaultValue": 1
+			}
+		},
+		"variables": {
+			"Mapping": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "Occupancy Report"
+		},
+		"annotations": []
+	}
+}

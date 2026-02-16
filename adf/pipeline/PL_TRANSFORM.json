@@ -1,0 +1,350 @@
+{
+	"name": "PL_TRANSFORM",
+	"properties": {
+		"activities": [
+			{
+				"name": "SetTableLogString",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "ForEachTableToTransform",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "TableLogString",
+					"value": {
+						"value": "@string(variables('TableLogs'))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "UpdateProcessLogs",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "SetTableLogString",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.01:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"sqlReaderStoredProcedureName": "[ELT].[UpdateProcessLog]",
+						"storedProcedureParameters": {
+							"logjson": {
+								"type": "String",
+								"value": {
+									"value": "@string(variables('TableLogs'))",
+									"type": "Expression"
+								}
+							},
+							"PipelineID": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								}
+							},
+							"PipelineName": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().Pipeline",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "A",
+							"TableName": "A"
+						}
+					},
+					"firstRowOnly": true
+				}
+			},
+			{
+				"name": "GetTablesToLoad",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.01:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"sqlReaderStoredProcedureName": "[ELT].[GetTablesToLoadCOP]",
+						"storedProcedureParameters": {
+							"SourceSystem": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().parameters.SourceSystem",
+									"type": "Expression"
+								}
+							},
+							"FlowType": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().parameters.FlowType",
+									"type": "Expression"
+								}
+							},
+							"ADFProcessID": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().parameters.ADFProcessID",
+									"type": "Expression"
+								}
+							},
+							"PipelineID": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().parameters.PipelineID",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_syn_dw_query",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "ForEachTableToTransform",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "GetTablesToLoad",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('GetTablesToLoad').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "CopyDataAppendLogsOnSuccess",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "CopySourceToSink",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "TableLogs",
+								"value": {
+									"value": "@replace(\n    replace(\n        replace(\n            replace(\n                replace(\n                    replace(\n                        replace(\n                            variables('TableLogTemplate'),\n                            '{ELTControlID}', string(item().ELTControlID)\n                        ),\n                        '{ProcessName}', concat('Copy_', item().TargetTableName)\n                    ),\n                    '{Completed}', '1'\n                ),\n                '{ELTRowCount}', string(activity('CopySourceToSink').output.rowsCopied)\n            ),\n            '{ELTInsertCount}', string(activity('CopySourceToSink').output.rowsCopied)\n        ),\n        '{StartTime}', activity('CopySourceToSink').output.executionDetails[0].start\n    ),\n    '{EndTime}', utcNow()\n)\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "CopyDataAppendLogsOnFailure",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "CopySourceToSink",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "TableLogs",
+								"value": {
+									"value": "@replace(\n    replace(\n        replace(\n            replace(\n                replace(\n                    replace(\n                        variables('TableLogTemplate'),\n                        '{ELTControlID}', string(item().ELTControlID)\n                    ),\n                    '{ProcessName}', concat('Copy_', item().TargetTableName)\n                ),\n                '{Completed}', '0'\n            ),\n            '{ErrorMessage}', activity('CopySourceToSink').Error.Message\n        ),\n        '{EndTime}', utcNow()\n    ),\n    '{StartTime}', activity('CopySourceToSink').output.executionDetails[0].start\n)\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "CopySourceToSink",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.06:00:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [
+								{
+									"name": "Destination",
+									"value": "@{item().TargetTableSchemaName}.@{'item().TargetTableName'}"
+								}
+							],
+							"typeProperties": {
+								"source": {
+									"type": "SqlDWSource",
+									"sqlReaderQuery": {
+										"value": "@item().SourceQuery",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "SqlDWSink",
+									"preCopyScript": {
+										"value": "@if(equals(item().IncrementalLoad, 0), concat('TRUNCATE TABLE [', item().TargetTableSchemaName, '].[', item().TargetTableName, ']'), '')\n",
+										"type": "Expression"
+									},
+									"writeBehavior": "Insert",
+									"sqlWriterUseTableLock": false,
+									"tableOption": "autoCreate",
+									"disableMetricsCollection": false
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_syn_dw_query",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_synapse_generic_table",
+									"type": "DatasetReference",
+									"parameters": {
+										"SchemaName": {
+											"value": "@item().TargetTableSchemaName",
+											"type": "Expression"
+										},
+										"TableName": {
+											"value": "@item().TargetTableName",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"name": "ExPLNotifications",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "UpdateProcessLogs",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "PL_Notifications",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"PipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineDuration": {
+							"value": "@string(activity('UpdateProcessLogs').output.firstRow.TotalRunDuration)",
+							"type": "Expression"
+						},
+						"ErrorCount": {
+							"value": "@activity('UpdateProcessLogs').output.firstRow.ErrorRowCount",
+							"type": "Expression"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"SourceSystem": {
+				"type": "string"
+			},
+			"FlowType": {
+				"type": "string"
+			},
+			"ADFProcessID": {
+				"type": "int"
+			},
+			"PipelineID": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"TableLogs": {
+				"type": "Array"
+			},
+			"TableLogString": {
+				"type": "String"
+			},
+			"TableLogTemplate": {
+				"type": "String",
+				"defaultValue": "{   \"StartTime\": \"{StartTime}\",   \"EndTime\": \"{EndTime}\",   \"ProcessName\":\"{ProcessName}\",   \"ELTRowCount\": \"{ELTRowCount}\",   \"ELTErrorCount\": \"{ELTErrorCount}\",   \"ELTInsertCount\": \"{ELTInsertCount}\",   \"ELTUpdateCount\": \"{ELTUpdateCount}\",   \"ELTDeleteCount\": \"{ELTDeleteCount}\",   \"Completed\": \"{Completed}\",   \"TotalSourceRecords\": \"{TotalSourceRecords}\",   \"TotalTargetRecords\": \"{TotalSourceRecords}\",   \"ErrorMessage\": \"{ErrorMessage}\",   \"ELTControlID\": \"{ELTControlID}\",   \"LoadType\": \"{LoadType}\" }"
+			}
+		},
+		"folder": {
+			"name": "ELT"
+		},
+		"annotations": []
+	}
+}

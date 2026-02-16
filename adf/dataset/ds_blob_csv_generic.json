@@ -1,0 +1,59 @@
+{
+	"name": "ds_blob_csv_generic",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_blob_stage",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"folder_path": {
+				"type": "string"
+			},
+			"first_row_as_header": {
+				"type": "bool"
+			},
+			"delimiter": {
+				"type": "string"
+			},
+			"quote_character": {
+				"type": "String"
+			},
+			"blob_container": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"folderPath": {
+					"value": "@dataset().folder_path",
+					"type": "Expression"
+				},
+				"container": {
+					"value": "@dataset().blob_container",
+					"type": "Expression"
+				}
+			},
+			"columnDelimiter": {
+				"value": "@dataset().delimiter",
+				"type": "Expression"
+			},
+			"rowDelimiter": {
+				"value": "@concat('\r','\n')",
+				"type": "Expression"
+			},
+			"escapeChar": "\\",
+			"firstRowAsHeader": {
+				"value": "@dataset().first_row_as_header",
+				"type": "Expression"
+			},
+			"quoteChar": {
+				"value": "@dataset().quote_character",
+				"type": "Expression"
+			}
+		},
+		"schema": []
+	}
+}

@@ -1,0 +1,9 @@
+{
+	"name": "aue-wn-adp-tco-adf-dev",
+	"location": "australiaeast",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "71b9340e-cd5f-4a73-bb0e-39c4dd23850d",
+		"tenantId": "e3d7352c-397e-4fdb-ac22-c9513142fc13"
+	}
+}

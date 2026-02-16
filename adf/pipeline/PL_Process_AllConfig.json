@@ -1,0 +1,163 @@
+{
+	"name": "PL_Process_AllConfig",
+	"properties": {
+		"activities": [
+			{
+				"name": "ETL to Process",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "config",
+							"TableName": "vw_ETLConfig"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Loop through all ETLs",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "ETL to Process",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('ETL to Process').output.value",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Process files for config",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_Process_AllFiles_ForConfig",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"FolderName": {
+										"value": "@item().ConfigLocation",
+										"type": "Expression"
+									},
+									"FilePatternName": {
+										"value": "@item().ConfigFileName",
+										"type": "Expression"
+									},
+									"Drive": {
+										"value": "@item().Drive",
+										"type": "Expression"
+									},
+									"ConfigName": {
+										"value": "@item().ConfigName",
+										"type": "Expression"
+									},
+									"MoveFileFlag": {
+										"value": "@if(item().ReProcessFlag,0,pipeline().parameters.MoveFileFlag)",
+										"type": "Expression"
+									},
+									"FileExtension": {
+										"value": "@item().FileExtension",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Call SP if more then one file processed",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Loop through all ETLs",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(activity('ETL to Process').output.count, 1)\r\n",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Call SP to move EDW",
+							"type": "Script",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "ls_tco_dp",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "Query",
+										"text": "EXEC [EDW].[sp_ProcessEDW]"
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00"
+							}
+						}
+					]
+				}
+			}
+		],
+		"concurrency": 1,
+		"parameters": {
+			"MoveFileFlag": {
+				"type": "int",
+				"defaultValue": 0
+			}
+		},
+		"variables": {
+			"Mapping": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "Fin Crime Excel Upload"
+		},
+		"annotations": []
+	}
+}

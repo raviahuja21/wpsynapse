@@ -1,0 +1,706 @@
+{
+	"name": "PL_Process_AllCSV",
+	"properties": {
+		"activities": [
+			{
+				"name": "Log the error",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "if_CSV_is_changing_schema",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_tco_dp",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": {
+								"value": "@concat('insert into config.ProcessLog  (FileName,Logmessage,configName,ProcessDateTIme)\n\tSELECT ''Error - ', pipeline().parameters.P_FileName,''',''',activity('copy_csv_to_landing').Error.Message,''',''',pipeline().parameters.P_ConfigName,''',SYSDATETIMEOFFSET() AT TIME ZONE ''New Zealand Standard Time''')",
+								"type": "Expression"
+							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "Copy file to Archive",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "if_CSV_is_changing_schema",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [
+					{
+						"name": "Source",
+						"value": "@{pipeline().parameters.P_Drive}/@{pipeline().parameters.P_DirName}/"
+					},
+					{
+						"name": "Destination",
+						"value": "@{pipeline().parameters.P_Drive}/@{concat(pipeline().parameters.P_DirName,'/archive/')}/"
+					}
+				],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobStorageReadSettings",
+							"recursive": true,
+							"wildcardFolderPath": {
+								"value": "@pipeline().parameters.P_DirName",
+								"type": "Expression"
+							},
+							"wildcardFileName": {
+								"value": "@pipeline().parameters.P_FileName",
+								"type": "Expression"
+							},
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobStorageWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_blob_csv_generic",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": {
+								"value": "@pipeline().parameters.P_DirName",
+								"type": "Expression"
+							},
+							"first_row_as_header": false,
+							"delimiter": "not_needed",
+							"quote_character": "not_needed",
+							"blob_container": {
+								"value": "@pipeline().parameters.P_Drive",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_blob_csv_generic",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": {
+								"value": "@concat(pipeline().parameters.P_DirName,'/archive/')",
+								"type": "Expression"
+							},
+							"first_row_as_header": false,
+							"delimiter": "not_needed",
+							"quote_character": "not_needed",
+							"blob_container": {
+								"value": "@pipeline().parameters.P_Drive",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "Delete file",
+				"type": "Delete",
+				"dependsOn": [
+					{
+						"activity": "Copy file to Archive",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_blob_csv_generic",
+						"type": "DatasetReference",
+						"parameters": {
+							"folder_path": {
+								"value": "@pipeline().parameters.P_DirName",
+								"type": "Expression"
+							},
+							"first_row_as_header": false,
+							"delimiter": "not_needed",
+							"quote_character": "not_needed",
+							"blob_container": {
+								"value": "@pipeline().parameters.P_Drive",
+								"type": "Expression"
+							}
+						}
+					},
+					"enableLogging": false,
+					"storeSettings": {
+						"type": "AzureBlobStorageReadSettings",
+						"recursive": true,
+						"wildcardFileName": {
+							"value": "@pipeline().parameters.P_FileName",
+							"type": "Expression"
+						},
+						"enablePartitionDiscovery": false
+					}
+				}
+			},
+			{
+				"name": "log_start_of_copy_process",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.00:10:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_tco_dp",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": {
+								"value": "@concat('insert into config.ProcessLog  (FileName,Logmessage,configName,ProcessDateTIme)\n\tSELECT ''', pipeline().parameters.P_FileName,''',''Started'',''',pipeline().parameters.P_ConfigName,''',SYSDATETIMEOFFSET() AT TIME ZONE ''New Zealand Standard Time''')",
+								"type": "Expression"
+							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "if_CSV_is_changing_schema",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "log_start_of_copy_process",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@pipeline().parameters.P_SchemaChangeFlag",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "copy_csv_to_landing",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.00:10:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [
+								{
+									"name": "Source",
+									"value": "@{pipeline().parameters.P_Drive}/@{pipeline().parameters.P_DirName}/"
+								},
+								{
+									"name": "Destination",
+									"value": "@{pipeline().parameters.P_DestinationSchema}.@{pipeline().parameters.P_DestinationTable}"
+								}
+							],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"additionalColumns": [
+										{
+											"name": "file_name",
+											"value": "$$FILENAME"
+										},
+										{
+											"name": "source_name",
+											"value": {
+												"value": "@pipeline().parameters.P_SourceName",
+												"type": "Expression"
+											}
+										},
+										{
+											"name": "data_load_time",
+											"value": {
+												"value": "@convertTimeZone(utcNow(), 'UTC', 'New Zealand Standard Time')",
+												"type": "Expression"
+											}
+										}
+									],
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": true,
+										"wildcardFolderPath": {
+											"value": "@pipeline().parameters.P_DirName",
+											"type": "Expression"
+										},
+										"wildcardFileName": {
+											"value": "@pipeline().parameters.P_FileName",
+											"type": "Expression"
+										},
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings",
+										"skipLineCount": {
+											"value": "@int(if(equals(pipeline().parameters.P_SchemaChangeFlag, true), '0', pipeline().parameters.P_NoOfLinesToSkip))",
+											"type": "Expression"
+										}
+									}
+								},
+								"sink": {
+									"type": "SqlDWSink",
+									"preCopyScript": {
+										"value": "@concat( 'DELETE FROM ', '[', replace(pipeline().parameters.P_DestinationSchema, ']', ']]'), '].[', replace(pipeline().parameters.P_DestinationTable, ']', ']]'), '] WHERE file_name = ''', replace(pipeline().parameters.P_FileName, '''', ''''''), '''' )",
+										"type": "Expression"
+									},
+									"allowCopyCommand": true
+								},
+								"enableStaging": true,
+								"stagingSettings": {
+									"linkedServiceName": {
+										"referenceName": "ls_blob_stage",
+										"type": "LinkedServiceReference"
+									},
+									"path": {
+										"value": "@concat(pipeline().parameters.P_Drive,'/staging_logs')",
+										"type": "Expression"
+									},
+									"enableCompression": true
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_blob_csv_generic",
+									"type": "DatasetReference",
+									"parameters": {
+										"folder_path": {
+											"value": "@pipeline().parameters.P_DirName",
+											"type": "Expression"
+										},
+										"first_row_as_header": {
+											"value": "@pipeline().parameters.P_IsFirstRowHeader",
+											"type": "Expression"
+										},
+										"delimiter": {
+											"value": "@pipeline().parameters.P_Delimeter",
+											"type": "Expression"
+										},
+										"quote_character": {
+											"value": "@pipeline().parameters.P_QuoteCharacter",
+											"type": "Expression"
+										},
+										"blob_container": {
+											"value": "@pipeline().parameters.P_Drive",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_synapse_generic_table",
+									"type": "DatasetReference",
+									"parameters": {
+										"SchemaName": {
+											"value": "@pipeline().parameters.P_DestinationSchema",
+											"type": "Expression"
+										},
+										"TableName": {
+											"value": "@pipeline().parameters.P_DestinationTable",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "log_success_copy_activity",
+							"type": "Script",
+							"dependsOn": [
+								{
+									"activity": "copy_csv_to_landing",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.00:10:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "ls_tco_dp",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "Query",
+										"text": {
+											"value": "@concat('update config.processlog  set ETLRowCount=',activity('copy_csv_to_landing').output.rowsCopied,',SourceRowsReadCount=',activity('copy_csv_to_landing').output.rowsRead,' ,ODSProcess=1,StatusFlag=1,Logmessage=''Completed'' where FileName=''', pipeline().parameters.P_FileName,'''')",
+											"type": "Expression"
+										}
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00"
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "execute_PL_Handle_ChangingSchema",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_Handle_ChangingSchema",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"folder_path": {
+										"value": "@pipeline().parameters.P_DirName",
+										"type": "Expression"
+									},
+									"blob_container": {
+										"value": "@pipeline().parameters.P_Drive",
+										"type": "Expression"
+									},
+									"firstrowasheader": {
+										"value": "@pipeline().parameters.P_IsFirstRowHeader",
+										"type": "Expression"
+									},
+									"delimiter": {
+										"value": "@pipeline().parameters.P_Delimeter",
+										"type": "Expression"
+									},
+									"quote_character": {
+										"value": "@pipeline().parameters.P_QuoteCharacter",
+										"type": "Expression"
+									},
+									"file_name": {
+										"value": "@pipeline().parameters.P_FileName",
+										"type": "Expression"
+									},
+									"skiplinecount": {
+										"value": "@pipeline().parameters.P_NoOfLinesToSkip",
+										"type": "Expression"
+									}
+								}
+							}
+						},
+						{
+							"name": "copy_csv_to_landing_for_changed_schema",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "execute_PL_Handle_ChangingSchema",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.00:10:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [
+								{
+									"name": "Source",
+									"value": "@{pipeline().parameters.P_Drive}/@{pipeline().parameters.P_DirName}/"
+								},
+								{
+									"name": "Destination",
+									"value": "@{pipeline().parameters.P_DestinationSchema}.@{pipeline().parameters.P_DestinationTable}"
+								}
+							],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"additionalColumns": [
+										{
+											"name": "file_name",
+											"value": "$$FILENAME"
+										},
+										{
+											"name": "source_name",
+											"value": {
+												"value": "@pipeline().parameters.P_SourceName",
+												"type": "Expression"
+											}
+										},
+										{
+											"name": "data_load_time",
+											"value": {
+												"value": "@convertTimeZone(utcNow(), 'UTC', 'New Zealand Standard Time')",
+												"type": "Expression"
+											}
+										}
+									],
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": true,
+										"wildcardFolderPath": {
+											"value": "@pipeline().parameters.P_DirName",
+											"type": "Expression"
+										},
+										"wildcardFileName": {
+											"value": "@pipeline().parameters.P_FileName",
+											"type": "Expression"
+										},
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings",
+										"skipLineCount": {
+											"value": "@int(if(equals(pipeline().parameters.P_SchemaChangeFlag, true), '0', pipeline().parameters.P_NoOfLinesToSkip))",
+											"type": "Expression"
+										}
+									}
+								},
+								"sink": {
+									"type": "SqlDWSink",
+									"preCopyScript": {
+										"value": "@concat( 'DELETE FROM ', '[', replace(pipeline().parameters.P_DestinationSchema, ']', ']]'), '].[', replace(pipeline().parameters.P_DestinationTable, ']', ']]'), '] WHERE file_name = ''', replace(pipeline().parameters.P_FileName, '''', ''''''), '''' )",
+										"type": "Expression"
+									},
+									"allowCopyCommand": true
+								},
+								"enableStaging": true,
+								"stagingSettings": {
+									"linkedServiceName": {
+										"referenceName": "ls_blob_stage",
+										"type": "LinkedServiceReference"
+									},
+									"path": {
+										"value": "@concat(pipeline().parameters.P_Drive,'/staging_logs')",
+										"type": "Expression"
+									},
+									"enableCompression": true
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_blob_dataflow_generic_csv",
+									"type": "DatasetReference",
+									"parameters": {
+										"folder_path": {
+											"value": "@pipeline().parameters.P_DirName",
+											"type": "Expression"
+										},
+										"first_row_as_header": {
+											"value": "@pipeline().parameters.P_IsFirstRowHeader",
+											"type": "Expression"
+										},
+										"delimeter": {
+											"value": "@pipeline().parameters.P_Delimeter",
+											"type": "Expression"
+										},
+										"quote_character": {
+											"value": "@pipeline().parameters.P_QuoteCharacter",
+											"type": "Expression"
+										},
+										"blob_container": {
+											"value": "@pipeline().parameters.P_Drive",
+											"type": "Expression"
+										},
+										"file_name": {
+											"value": "@pipeline().parameters.P_FileName",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_synapse_generic_table",
+									"type": "DatasetReference",
+									"parameters": {
+										"SchemaName": {
+											"value": "@pipeline().parameters.P_DestinationSchema",
+											"type": "Expression"
+										},
+										"TableName": {
+											"value": "@pipeline().parameters.P_DestinationTable",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "log_success_copy_changed_schema_activity",
+							"type": "Script",
+							"dependsOn": [
+								{
+									"activity": "copy_csv_to_landing_for_changed_schema",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.00:10:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"linkedServiceName": {
+								"referenceName": "ls_tco_dp",
+								"type": "LinkedServiceReference"
+							},
+							"typeProperties": {
+								"scripts": [
+									{
+										"type": "Query",
+										"text": {
+											"value": "@concat('update config.processlog  set ETLRowCount=',activity('copy_csv_to_landing_for_changed_schema').output.rowsCopied,',SourceRowsReadCount=',activity('copy_csv_to_landing_for_changed_schema').output.rowsRead,' ,ODSProcess=1,StatusFlag=1,Logmessage=''Completed'' where FileName=''', pipeline().parameters.P_FileName,'''')",
+											"type": "Expression"
+										}
+									}
+								],
+								"scriptBlockExecutionTimeout": "02:00:00"
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"P_ConfigName": {
+				"type": "string",
+				"defaultValue": "PROPERTY_OCCUPANCY"
+			},
+			"P_DirName": {
+				"type": "string",
+				"defaultValue": "occupancy_data_protege"
+			},
+			"P_FileName": {
+				"type": "string",
+				"defaultValue": "occupancy_data_protege_20250125.csv"
+			},
+			"P_Drive": {
+				"type": "string",
+				"defaultValue": "protectiveservices"
+			},
+			"P_MoveToArchive": {
+				"type": "int",
+				"defaultValue": 1
+			},
+			"P_SourceName": {
+				"type": "string",
+				"defaultValue": "Protege"
+			},
+			"P_IsFirstRowHeader": {
+				"type": "bool",
+				"defaultValue": true
+			},
+			"P_Delimeter": {
+				"type": "string",
+				"defaultValue": ","
+			},
+			"P_QuoteCharacter": {
+				"type": "string",
+				"defaultValue": "\""
+			},
+			"P_NoOfLinesToSkip": {
+				"type": "string",
+				"defaultValue": "2"
+			},
+			"P_DestinationSchema": {
+				"type": "string",
+				"defaultValue": "Landing"
+			},
+			"P_DestinationTable": {
+				"type": "string",
+				"defaultValue": "PropertyOccupancy_Protege"
+			},
+			"P_SchemaChangeFlag": {
+				"type": "bool",
+				"defaultValue": true
+			}
+		},
+		"variables": {
+			"SheetName": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "Occupancy Report"
+		},
+		"annotations": []
+	}
+}

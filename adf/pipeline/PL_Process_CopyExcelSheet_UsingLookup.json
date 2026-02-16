@@ -1,0 +1,210 @@
+{
+	"name": "PL_Process_CopyExcelSheet_UsingLookup",
+	"properties": {
+		"activities": [
+			{
+				"name": "Read Excel file data",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "ExcelSource",
+						"storeSettings": {
+							"type": "FileServerReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						}
+					},
+					"dataset": {
+						"referenceName": "ds_Generic_ExcelDataSet",
+						"type": "DatasetReference",
+						"parameters": {
+							"Directory": {
+								"value": "@pipeline().parameters.P_DirName",
+								"type": "Expression"
+							},
+							"FileName": {
+								"value": "@pipeline().parameters.P_FileName",
+								"type": "Expression"
+							},
+							"SheetName": {
+								"value": "@pipeline().parameters.P_ConfigSheetName",
+								"type": "Expression"
+							},
+							"Range": {
+								"value": "@pipeline().parameters.P_ConfigDataRange",
+								"type": "Expression"
+							},
+							"FirstRowHeaderFlag": {
+								"value": "1",
+								"type": "Expression"
+							},
+							"Drive": {
+								"value": "@pipeline().parameters.P_Drive",
+								"type": "Expression"
+							}
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Call SP to Process file and Log Status",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Read Excel file data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"sqlReaderStoredProcedureName": "[config].[sp_CopyExcel_To_SQL]",
+						"storedProcedureParameters": {
+							"configName": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().parameters.P_ConfigName",
+									"type": "Expression"
+								}
+							},
+							"fileName": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().parameters.P_FileName",
+									"type": "Expression"
+								}
+							},
+							"json": {
+								"type": "String",
+								"value": {
+									"value": "@string(activity('Read Excel file data').output.value)",
+									"type": "Expression"
+								}
+							},
+							"SheetName": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().parameters.P_ConfigSheetName",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "A",
+							"TableName": "A"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Log the Error_copy1",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "Call SP to Process file and Log Status",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_tco_dp",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": {
+								"value": "@concat('update config.processlog set FileName=''', 'Error - ', pipeline().parameters.P_FileName, ''', ODSProcess=0, StatusFlag=0, SheetName=''', pipeline().parameters.P_ConfigSheetName, ''', Logmessage=''Error'' where FileName=''', pipeline().parameters.P_FileName, '''')",
+								"type": "Expression"
+							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			}
+		],
+		"parameters": {
+			"P_DirName": {
+				"type": "string",
+				"defaultValue": "Quality\\Data\\Drawdowns\\Daily"
+			},
+			"P_FileName": {
+				"type": "string",
+				"defaultValue": "Drawdown 20230918T093129.xlsx"
+			},
+			"P_ConfigSheetName": {
+				"type": "string",
+				"defaultValue": "PL"
+			},
+			"P_Drive": {
+				"type": "string",
+				"defaultValue": "\\\\supportchc\\supportchc\\"
+			},
+			"P_ConfigDataRange": {
+				"type": "string",
+				"defaultValue": "A1:AD25000"
+			},
+			"P_ConfigName": {
+				"type": "string",
+				"defaultValue": "LS_DAILY"
+			},
+			"P_DestiNationTableName": {
+				"type": "string",
+				"defaultValue": "LendingService_Drawdon_PL"
+			},
+			"P_DestiNationTableSchema": {
+				"type": "string",
+				"defaultValue": "Landing"
+			},
+			"P_ProcedureName": {
+				"type": "string",
+				"defaultValue": "LS.sp_Manage_LendingService_Drawdon_PL"
+			},
+			"P_Lookup": {
+				"type": "bool",
+				"defaultValue": false
+			}
+		},
+		"folder": {
+			"name": "Fin Crime Excel Upload"
+		},
+		"annotations": []
+	}
+}

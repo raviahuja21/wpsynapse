@@ -1,0 +1,130 @@
+{
+	"name": "PL_Notifications",
+	"properties": {
+		"activities": [
+			{
+				"name": "IfHasError",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@greater(pipeline().parameters.ErrorCount,0)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "SendTeamsMessage",
+							"type": "WebActivity",
+							"dependsOn": [
+								{
+									"activity": "GeneratePipelineNotificationJson",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"method": "POST",
+								"url": "https://wnzl.webhook.office.com/webhookb2/ee37ba08-1d32-4333-af40-268e95bfafed@e3d7352c-397e-4fdb-ac22-c9513142fc13/IncomingWebhook/00d290985eb840cea1180055db510904/2e9be723-1bc2-427d-8a49-56e5b603b982/V2ZaXQ1tROV2S2HSyu1R4Jk1Tv7ChduPquvrQFxTfnpyg1",
+								"body": {
+									"value": "@activity('GeneratePipelineNotificationJson').output.firstRow.TeamsMessageJson",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "GeneratePipelineNotificationJson",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SqlDWSource",
+									"sqlReaderStoredProcedureName": "[ELT].[GeneratePipelineNotificationJson]",
+									"storedProcedureParameters": {
+										"Duration": {
+											"type": "Int32",
+											"value": "@pipeline().parameters.PipelineDuration"
+										},
+										"Environment": {
+											"type": "String",
+											"value": "@pipeline().DataFactory"
+										},
+										"Message": {
+											"type": "String",
+											"value": "'FAILED'"
+										},
+										"PipelineName": {
+											"type": "String",
+											"value": "@pipeline().parameters.PipelineName"
+										},
+										"PipelineRunId": {
+											"type": "String",
+											"value": "@pipeline().parameters.PipelineRunId"
+										}
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "ds_synapse_generic_table",
+									"type": "DatasetReference",
+									"parameters": {
+										"SchemaName": "A",
+										"TableName": "A"
+									}
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"PipelineRunId": {
+				"type": "string",
+				"defaultValue": "e11000e0-a4ca-459f-92dd-49499f132214"
+			},
+			"PipelineName": {
+				"type": "string",
+				"defaultValue": "pl_load_workwareplus"
+			},
+			"PipelineDuration": {
+				"type": "string",
+				"defaultValue": "200"
+			},
+			"PipelineMessage": {
+				"type": "string",
+				"defaultValue": "Success"
+			},
+			"ErrorCount": {
+				"type": "int"
+			}
+		},
+		"variables": {
+			"messageCard": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "Logging_Notifications"
+		},
+		"annotations": []
+	}
+}

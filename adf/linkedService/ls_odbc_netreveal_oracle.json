@@ -1,0 +1,21 @@
+{
+	"name": "ls_odbc_netreveal_oracle",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "Odbc",
+		"typeProperties": {
+			"connectionString": {
+				"type": "SecureString",
+				"value": "**********"
+			},
+			"authenticationType": "Basic",
+			"userName": "M816775",
+			"encryptedCredential": "eyJDcmVkZW50aWFsSWQiOiI1OTI1YTQyOC05Mjc2LTRkZmItYmMwYy01YTA2YzVjMWRlZTIiLCJWZXJzaW9uIjoiMi4wIiwiQ2xhc3NUeXBlIjoiTWljcm9zb2Z0LkRhdGFQcm94eS5Db3JlLkludGVyU2VydmljZURhdGFDb250cmFjdC5DcmVkZW50aWFsU1UwNkNZMTQifQ=="
+		},
+		"connectVia": {
+			"referenceName": "shir-adp-elz-tco",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

@@ -1,0 +1,37 @@
+{
+	"name": "trigger_nzdw_daily",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Stopped",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "PL_MAIN",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"SourceSystem": "NZDW_ODSP",
+					"FlowType": "Extract",
+					"ADFProcessID": "101"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Day",
+				"interval": 1,
+				"startTime": "2025-07-23T02:01:00",
+				"timeZone": "New Zealand Standard Time",
+				"schedule": {
+					"minutes": [
+						0
+					],
+					"hours": [
+						7
+					]
+				}
+			}
+		}
+	}
+}

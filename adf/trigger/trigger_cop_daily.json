@@ -1,0 +1,38 @@
+{
+	"name": "trigger_cop_daily",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Stopped",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "PL_MAIN",
+					"type": "PipelineReference"
+				},
+				"parameters": {
+					"SourceSystem": "COP",
+					"FlowType": "Extract",
+					"ADFProcessID": "100"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Day",
+				"interval": 1,
+				"startTime": "2025-07-22T02:10:00",
+				"timeZone": "New Zealand Standard Time",
+				"schedule": {
+					"minutes": [
+						0
+					],
+					"hours": [
+						6,
+						12
+					]
+				}
+			}
+		}
+	}
+}

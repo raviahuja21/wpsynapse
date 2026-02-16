@@ -1,0 +1,304 @@
+{
+	"name": "PL_Process_CopyExcelSheet",
+	"properties": {
+		"activities": [
+			{
+				"name": "Log the Copy Status_copy1",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_tco_dp",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": {
+								"value": "@concat('insert into config.ProcessLog (SheetName,FileName,Logmessage,configName,ProcessDateTIme) SELECT ''', pipeline().parameters.P_ConfigSheetName, ''',''', pipeline().parameters.P_FileName, ''',''Started'',''', pipeline().parameters.P_ConfigName, ''',SYSDATETIMEOFFSET() AT TIME ZONE ''New Zealand Standard Time''')",
+								"type": "Expression"
+							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "Copy data1",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Log the Copy Status_copy1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "ExcelSource",
+						"additionalColumns": [
+							{
+								"name": "FILENAME",
+								"value": {
+									"value": "@pipeline().parameters.P_FileName",
+									"type": "Expression"
+								}
+							},
+							{
+								"name": "DataLoadDateTime",
+								"value": {
+									"value": "@convertTimeZone(utcNow(), 'UTC', 'New Zealand Standard Time')",
+									"type": "Expression"
+								}
+							}
+						],
+						"storeSettings": {
+							"type": "FileServerReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						}
+					},
+					"sink": {
+						"type": "SqlDWSink",
+						"preCopyScript": {
+							"value": "@concat('delete from ',pipeline().parameters.P_DestiNationTableSchema,'.',pipeline().parameters.P_DestiNationTableName,' where filename =''',pipeline().parameters.P_FileName,'''')",
+							"type": "Expression"
+						},
+						"allowCopyCommand": true
+					},
+					"enableStaging": true,
+					"stagingSettings": {
+						"linkedServiceName": {
+							"referenceName": "ls_blob_stage",
+							"type": "LinkedServiceReference"
+						},
+						"path": "tco-dev-fincrime-excel"
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_Generic_ExcelDataSet",
+						"type": "DatasetReference",
+						"parameters": {
+							"Directory": "@pipeline().parameters.P_DirName",
+							"FileName": {
+								"value": "@pipeline().parameters.P_FileName",
+								"type": "Expression"
+							},
+							"SheetName": {
+								"value": "@pipeline().parameters.P_ConfigSheetName",
+								"type": "Expression"
+							},
+							"Range": {
+								"value": "@pipeline().parameters.P_ConfigDataRange",
+								"type": "Expression"
+							},
+							"FirstRowHeaderFlag": "1",
+							"Drive": {
+								"value": "@pipeline().parameters.P_Drive",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": {
+								"value": "@pipeline().parameters.P_DestiNationTableSchema",
+								"type": "Expression"
+							},
+							"TableName": {
+								"value": "@pipeline().parameters.P_DestiNationTableName",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "Log the Error if Copy Command dont work",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "Copy data1",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_tco_dp",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": {
+								"value": "@concat('update config.processlog set FileName=''', 'Error - ', pipeline().parameters.P_FileName, ''', ETLRowCount=0, ODSProcess=0, StatusFlag=0, SheetName=''', pipeline().parameters.P_ConfigSheetName, ''', Logmessage=''',replace(activity('Copy data1').output.errors[0].Message,'''',''),''' where FileName=''', pipeline().parameters.P_FileName, '''')",
+								"type": "Expression"
+							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "Call SP",
+				"type": "SqlServerStoredProcedure",
+				"dependsOn": [
+					{
+						"activity": "Copy data1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"storedProcedureName": {
+						"value": "@pipeline().parameters.P_ProcedureName",
+						"type": "Expression"
+					},
+					"storedProcedureParameters": {
+						"FILENAME": {
+							"value": {
+								"value": "@pipeline().parameters.P_FileName",
+								"type": "Expression"
+							},
+							"type": "String"
+						},
+						"SheetName": {
+							"value": {
+								"value": "@pipeline().parameters.P_ConfigSheetName",
+								"type": "Expression"
+							},
+							"type": "String"
+						}
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_tco_dp",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "Log the Error if Procedure fail",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "Call SP",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_tco_dp",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": {
+								"value": "@concat('update config.processlog set ETLRowCount=0, ODSProcess=0, StatusFlag=0, SheetName=''', pipeline().parameters.P_ConfigSheetName, ''', Logmessage=''Error in SP'' where FileName=''', pipeline().parameters.P_FileName, '''')",
+								"type": "Expression"
+							}
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			}
+		],
+		"parameters": {
+			"P_DirName": {
+				"type": "string",
+				"defaultValue": "Quality\\Data\\Drawdowns\\Daily"
+			},
+			"P_FileName": {
+				"type": "string",
+				"defaultValue": "Drawdown 20230918T093129.xlsx"
+			},
+			"P_ConfigSheetName": {
+				"type": "string",
+				"defaultValue": "PL"
+			},
+			"P_Drive": {
+				"type": "string",
+				"defaultValue": "\\\\supportchc\\supportchc\\"
+			},
+			"P_ConfigDataRange": {
+				"type": "string",
+				"defaultValue": "A1:AD25000"
+			},
+			"P_ConfigName": {
+				"type": "string",
+				"defaultValue": "LS_DAILY"
+			},
+			"P_DestiNationTableName": {
+				"type": "string",
+				"defaultValue": "LendingService_Drawdon_PL"
+			},
+			"P_DestiNationTableSchema": {
+				"type": "string",
+				"defaultValue": "Landing"
+			},
+			"P_ProcedureName": {
+				"type": "string",
+				"defaultValue": "LS.sp_Manage_LendingService_Drawdon_PL"
+			},
+			"P_Lookup": {
+				"type": "bool",
+				"defaultValue": false
+			}
+		},
+		"folder": {
+			"name": "Fin Crime Excel Upload"
+		},
+		"annotations": []
+	}
+}

@@ -1,0 +1,26 @@
+{
+	"name": "ds_generic_odbc_odsp",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_odbc_tco_odsp",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"P_Schema": {
+				"type": "string"
+			},
+			"P_Table": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "OdbcTable",
+		"schema": [],
+		"typeProperties": {
+			"tableName": {
+				"value": "@concat(dataset().P_Schema,'.',dataset().P_Table)",
+				"type": "Expression"
+			}
+		}
+	}
+}

@@ -1,0 +1,49 @@
+{
+	"name": "ds_Generic_netreveal_FolderName",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_financial_crime_report_folder",
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"p_folder": {
+					"value": "@dataset().p_drive",
+					"type": "Expression"
+				}
+			}
+		},
+		"parameters": {
+			"p_FolderName": {
+				"type": "string"
+			},
+			"p_drive": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "FileServerLocation",
+				"folderPath": {
+					"value": "@dataset().p_FolderName",
+					"type": "Expression"
+				}
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": false,
+			"quoteChar": ""
+		},
+		"schema": [
+			{
+				"type": "String"
+			},
+			{
+				"type": "String"
+			},
+			{
+				"type": "String"
+			}
+		]
+	}
+}

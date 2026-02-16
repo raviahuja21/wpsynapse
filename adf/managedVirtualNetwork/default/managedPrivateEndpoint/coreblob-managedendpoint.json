@@ -1,0 +1,7 @@
+{
+	"name": "coreblob-managedendpoint",
+	"properties": {
+		"privateLinkResourceId": "/subscriptions/39c8b322-2966-4c07-a63c-3bd8757e5e63/resourceGroups/t3-syd-adp-core-dev-arg/providers/Microsoft.Storage/storageAccounts/adpcoredev",
+		"groupId": "blob"
+	}
+}

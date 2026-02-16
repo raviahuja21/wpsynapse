@@ -1,0 +1,60 @@
+{
+	"name": "ds_Generic_ExcelDataSet",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_financial_crime_report_folder",
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"p_folder": {
+					"value": "@dataset().Drive",
+					"type": "Expression"
+				}
+			}
+		},
+		"parameters": {
+			"Directory": {
+				"type": "string"
+			},
+			"FileName": {
+				"type": "string"
+			},
+			"SheetName": {
+				"type": "string"
+			},
+			"Range": {
+				"type": "string"
+			},
+			"FirstRowHeaderFlag": {
+				"type": "bool"
+			},
+			"Drive": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "Excel",
+		"typeProperties": {
+			"sheetName": {
+				"value": "@dataset().SheetName",
+				"type": "Expression"
+			},
+			"location": {
+				"type": "FileServerLocation",
+				"fileName": {
+					"value": "@dataset().FileName",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@dataset().Directory",
+					"type": "Expression"
+				}
+			},
+			"range": {
+				"value": "@dataset().Range",
+				"type": "Expression"
+			},
+			"firstRowAsHeader": true
+		},
+		"schema": []
+	}
+}

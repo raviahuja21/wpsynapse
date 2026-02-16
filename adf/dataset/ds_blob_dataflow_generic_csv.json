@@ -1,0 +1,63 @@
+{
+	"name": "ds_blob_dataflow_generic_csv",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_blob_stage",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"folder_path": {
+				"type": "string"
+			},
+			"first_row_as_header": {
+				"type": "bool"
+			},
+			"delimeter": {
+				"type": "string"
+			},
+			"quote_character": {
+				"type": "string"
+			},
+			"blob_container": {
+				"type": "string"
+			},
+			"file_name": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"fileName": {
+					"value": "@dataset().file_name",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@dataset().folder_path",
+					"type": "Expression"
+				},
+				"container": {
+					"value": "@dataset().blob_container",
+					"type": "Expression"
+				}
+			},
+			"columnDelimiter": {
+				"value": "@dataset().delimeter",
+				"type": "Expression"
+			},
+			"rowDelimiter": "\n",
+			"escapeChar": "\\",
+			"firstRowAsHeader": {
+				"value": "@dataset().first_row_as_header",
+				"type": "Expression"
+			},
+			"quoteChar": {
+				"value": "@dataset().quote_character",
+				"type": "Expression"
+			}
+		},
+		"schema": []
+	}
+}

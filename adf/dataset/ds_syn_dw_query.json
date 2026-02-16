@@ -1,0 +1,12 @@
+{
+	"name": "ds_syn_dw_query",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_tco_dp",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlDWTable",
+		"schema": []
+	}
+}

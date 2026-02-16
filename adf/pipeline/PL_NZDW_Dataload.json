@@ -1,0 +1,551 @@
+{
+	"name": "PL_NZDW_Dataload",
+	"properties": {
+		"activities": [
+			{
+				"name": "GetTablesToLoad",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.01:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"sqlReaderStoredProcedureName": "[ELT].[GetTablesToLoad]",
+						"storedProcedureParameters": {
+							"SourceSystem": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().parameters.SourceSystem",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "A",
+							"TableName": "A"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "ForEachTableToLoadWithNextLink",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "GetTablesToLoad",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('GetTablesToLoad').output.Value",
+						"type": "Expression"
+					},
+					"batchCount": 5,
+					"activities": [
+						{
+							"name": "GetColumnMapping",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.01:00:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SqlDWSource",
+									"sqlReaderStoredProcedureName": "[ELT].[GetColumnMappingSYNCopy]",
+									"storedProcedureParameters": {
+										"ELTControlID": {
+											"type": "Int32",
+											"value": {
+												"value": "@item().ELTControlID",
+												"type": "Expression"
+											}
+										},
+										"SourceTableName": {
+											"type": "String",
+											"value": {
+												"value": "@item().SourceTableName",
+												"type": "Expression"
+											}
+										}
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "ds_synapse_generic_table",
+									"type": "DatasetReference",
+									"parameters": {
+										"SchemaName": "A",
+										"TableName": "A"
+									}
+								}
+							}
+						},
+						{
+							"name": "CopySourceToSink",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "GetColumnMapping",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.01:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 60,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [
+								{
+									"name": "Destination",
+									"value": "@{item().TargetTableSchemaName}.@{item().TargetTableName}"
+								},
+								{
+									"name": "ELTControlID",
+									"value": "@item().ELTControlID"
+								},
+								{
+									"name": "BaseURL",
+									"value": "@item().BaseURL"
+								}
+							],
+							"typeProperties": {
+								"source": {
+									"type": "OdbcSource",
+									"queryTimeout": "02:00:00"
+								},
+								"sink": {
+									"type": "SqlDWSink",
+									"preCopyScript": {
+										"value": "@{concat('IF EXISTS (SELECT 1 FROM sys.tables WHERE name = ''', item().TargetTableName, ''' AND schema_id = SCHEMA_ID(''', item().TargetTableSchemaName, ''')) BEGIN TRUNCATE TABLE ', item().TargetTableSchemaName, '.', item().TargetTableName, '; END')}",
+										"type": "Expression"
+									},
+									"allowCopyCommand": true
+								},
+								"enableStaging": true,
+								"stagingSettings": {
+									"linkedServiceName": {
+										"referenceName": "ls_blob_stage",
+										"type": "LinkedServiceReference"
+									},
+									"path": "tco-dev-fincrime-excel"
+								},
+								"translator": {
+									"value": "@json(activity('GetColumnMapping').output.firstRow.MappingJson)",
+									"type": "Expression"
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_generic_odbc_odsp",
+									"type": "DatasetReference",
+									"parameters": {
+										"P_Schema": {
+											"value": "@item().SourceTableSchemaName",
+											"type": "Expression"
+										},
+										"P_Table": {
+											"value": "@item().SourceTableName",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_synapse_generic_table",
+									"type": "DatasetReference",
+									"parameters": {
+										"SchemaName": {
+											"value": "@item().TargetTableSchemaName",
+											"type": "Expression"
+										},
+										"TableName": {
+											"value": "@item().TargetTableName",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "UpdateWaterMarkValue",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [
+								{
+									"activity": "UpdateODS",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.01:05:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[ELT].[UpdateMainControlWaterMarkValue]",
+								"storedProcedureParameters": {
+									"ELTControlID": {
+										"value": {
+											"value": "@item().ELTControlID",
+											"type": "Expression"
+										},
+										"type": "Int32"
+									},
+									"EndDate": {
+										"value": {
+											"value": "@item().WaterMarkEndDate",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "ls_tco_dp",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "UpdateODS",
+							"type": "Lookup",
+							"dependsOn": [
+								{
+									"activity": "CopySourceToSink",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.1:00:00",
+								"retry": 2,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [
+								{
+									"name": "StoredProcName",
+									"value": "@item().StoredProcName"
+								}
+							],
+							"typeProperties": {
+								"source": {
+									"type": "SqlDWSource",
+									"sqlReaderStoredProcedureName": {
+										"value": "@item().StoredProcName",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"dataset": {
+									"referenceName": "ds_synapse_generic_table",
+									"type": "DatasetReference",
+									"parameters": {
+										"SchemaName": "A",
+										"TableName": "A"
+									}
+								}
+							}
+						},
+						{
+							"name": "CopyDataAppendLogsOnSuccess",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "CopySourceToSink",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "TableLogs",
+								"value": {
+									"value": "@replace(\n    replace(\n        replace(\n            replace(\n                replace(\n                    replace(\n                        replace(\n                            variables('TableLogTemplate'),\n                            '{ELTControlID}', string(item().ELTControlID)\n                        ),\n                        '{ProcessName}', concat('Copy_', item().TargetTableName)\n                    ),\n                    '{Completed}', '1'\n                ),\n                '{ELTRowCount}', string(activity('CopySourceToSink').output.rowsCopied)\n            ),\n            '{ELTInsertCount}', string(activity('CopySourceToSink').output.rowsCopied)\n        ),\n        '{StartTime}', activity('CopySourceToSink').output.executionDetails[0].start\n    ),\n    '{EndTime}', utcNow()\n)\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "CopyDataAppendLogsOnFailure",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "CopySourceToSink",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "TableLogs",
+								"value": {
+									"value": "@replace(\n    replace(\n        replace(\n            replace(\n                replace(\n                    replace(\n                        variables('TableLogTemplate'),\n                        '{ELTControlID}', string(item().ELTControlID)\n                    ),\n                    '{ProcessName}', concat('Copy_', item().TargetTableName)\n                ),\n                '{Completed}', '0'\n            ),\n            '{ErrorMessage}', activity('CopySourceToSink').Error.Message\n        ),\n        '{EndTime}', utcNow()\n    ),\n    '{StartTime}', activity('CopySourceToSink').output.executionDetails[0].start\n)\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "UpdateODSAppendLogsOnSuccess",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "UpdateODS",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "TableLogs",
+								"value": {
+									"value": "@replace(\n    replace(\n        replace(\n            replace(\n                replace(\n                    replace(\n                        replace(\n                            replace(\n                                replace(\n                                    replace(\n                                        variables('TableLogTemplate'),\n                                        '{ELTControlID}', string(item().ELTControlID)\n                                    ),\n                                    '{ProcessName}', item().StoredProcName\n                                ),\n                                '{Completed}', '1'\n                            ),\n                            '{StartTime}', string(activity('UpdateODS').output.firstRow.StartTime)\n                        ),\n                        '{EndTime}', utcNow()\n                    ),\n                    '{ELTRowCount}', string(activity('UpdateODS').output.firstRow.TotalSourceRecords)\n                ),\n                '{ELTInsertCount}', string(activity('UpdateODS').output.firstRow.InsertedRecords)\n            ),\n            '{ELTUpdateCount}', string(activity('UpdateODS').output.firstRow.UpdatedRecords)\n        ),\n        '{ELTDeleteCount}', string(activity('UpdateODS').output.firstRow.DeletedRecords)\n    ),\n    '{ELTErrorCount}', string(activity('UpdateODS').output.firstRow.ErrorRecords)\n)\n",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "UpdateODSAppendLogsOnFailure",
+							"type": "AppendVariable",
+							"dependsOn": [
+								{
+									"activity": "UpdateODS",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "TableLogs",
+								"value": {
+									"value": "@replace(\n    replace(\n        replace(\n            replace(\n                replace(\n                    replace(\n                        variables('TableLogTemplate'),\n                        '{ELTControlID}', string(item().ELTControlID)\n                    ),\n                    '{ProcessName}', item().StoredProcName\n                ),\n                '{Completed}', '0'\n            ),\n            '{ErrorMessage}', activity('UpdateODS').Error.Message\n        ),\n        '{EndTime}', utcNow()\n    ),\n    '{StartTime}', utcNow()\n)\n",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "SetTableLogString",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "ForEachTableToLoadWithNextLink",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "TableLogString",
+					"value": {
+						"value": "@string(variables('TableLogs'))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "UpdateProcessLogs",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Run EDW Procedure",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.01:00:00",
+					"retry": 2,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"sqlReaderStoredProcedureName": "[ELT].[UpdateProcessLog]",
+						"storedProcedureParameters": {
+							"logjson": {
+								"type": "String",
+								"value": {
+									"value": "@string(variables('TableLogs'))",
+									"type": "Expression"
+								}
+							},
+							"PipelineID": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().RunId",
+									"type": "Expression"
+								}
+							},
+							"PipelineName": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().Pipeline",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "A",
+							"TableName": "A"
+						}
+					},
+					"firstRowOnly": true
+				}
+			},
+			{
+				"name": "ExPLNotifications",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "UpdateProcessLogs",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "PL_Notifications",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"PipelineRunId": {
+							"value": "@pipeline().RunId",
+							"type": "Expression"
+						},
+						"PipelineName": {
+							"value": "@pipeline().Pipeline",
+							"type": "Expression"
+						},
+						"PipelineDuration": {
+							"value": "@string(activity('UpdateProcessLogs').output.firstRow.TotalRunDuration)",
+							"type": "Expression"
+						},
+						"ErrorCount": {
+							"value": "@activity('UpdateProcessLogs').output.firstRow.ErrorRowCount",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Run EDW Procedure",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "SetTableLogString",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_tco_dp",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "NonQuery",
+							"text": "EXEC [NetReveal].[sp_EDW_Queue]"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			}
+		],
+		"parameters": {
+			"SourceSystem": {
+				"type": "string",
+				"defaultValue": "NetReveal"
+			}
+		},
+		"variables": {
+			"TableLogs": {
+				"type": "Array"
+			},
+			"TableLogString": {
+				"type": "String"
+			},
+			"TableLogTemplate": {
+				"type": "String",
+				"defaultValue": "{   \"StartTime\": \"{StartTime}\",   \"EndTime\": \"{EndTime}\",   \"ProcessName\":\"{ProcessName}\",   \"ELTRowCount\": \"{ELTRowCount}\",   \"ELTErrorCount\": \"{ELTErrorCount}\",   \"ELTInsertCount\": \"{ELTInsertCount}\",   \"ELTUpdateCount\": \"{ELTUpdateCount}\",   \"ELTDeleteCount\": \"{ELTDeleteCount}\",   \"Completed\": \"{Completed}\",   \"TotalSourceRecords\": \"{TotalSourceRecords}\",   \"TotalTargetRecords\": \"{TotalSourceRecords}\",   \"ErrorMessage\": \"{ErrorMessage}\",   \"ELTControlID\": \"{ELTControlID}\",   \"LoadType\": \"{LoadType}\" }"
+			}
+		},
+		"folder": {
+			"name": "NZDW ODSP"
+		},
+		"annotations": []
+	}
+}

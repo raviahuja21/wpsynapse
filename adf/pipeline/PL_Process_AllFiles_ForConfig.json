@@ -1,0 +1,210 @@
+{
+	"name": "PL_Process_AllFiles_ForConfig",
+	"properties": {
+		"activities": [
+			{
+				"name": "Get all files in folder",
+				"type": "GetMetadata",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_Generic_netreveal_FolderName",
+						"type": "DatasetReference",
+						"parameters": {
+							"p_FolderName": {
+								"value": "@pipeline().parameters.FolderName",
+								"type": "Expression"
+							},
+							"p_drive": {
+								"value": "@pipeline().parameters.Drive",
+								"type": "Expression"
+							}
+						}
+					},
+					"fieldList": [
+						"childItems"
+					],
+					"storeSettings": {
+						"type": "FileServerReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "DelimitedTextReadSettings"
+					}
+				}
+			},
+			{
+				"name": "List of Files to Process",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Get all files in folder",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"sqlReaderStoredProcedureName": "[config].[sp_Get_FilesToProcess]",
+						"storedProcedureParameters": {
+							"configName": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().parameters.ConfigName",
+									"type": "Expression"
+								}
+							},
+							"JSON_text": {
+								"type": "String",
+								"value": {
+									"value": "@string(activity('Get all files in folder').output.childItems)",
+									"type": "Expression"
+								}
+							},
+							"fileExtension": {
+								"type": "String",
+								"value": {
+									"value": "@pipeline().parameters.FileExtension",
+									"type": "Expression"
+								}
+							}
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "ABC",
+							"TableName": "ABC"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Loop thorugh all files",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "List of Files to Process",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('List of Files to Process').output.value",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 5,
+					"activities": [
+						{
+							"name": "Process All Sheet_copy",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "PL_Process_AllSheet_ForFile",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"P_ConfigName": {
+										"value": "@pipeline().parameters.ConfigName",
+										"type": "Expression"
+									},
+									"P_DirName": {
+										"value": "@pipeline().parameters.FolderName",
+										"type": "Expression"
+									},
+									"P_FileName": {
+										"value": "@item().UnProcessFileName",
+										"type": "Expression"
+									},
+									"P_Drive": {
+										"value": "@pipeline().parameters.Drive",
+										"type": "Expression"
+									},
+									"P_MoveToArchive": {
+										"value": "@pipeline().parameters.MoveFileFlag",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"concurrency": 1,
+		"parameters": {
+			"FolderName": {
+				"type": "string",
+				"defaultValue": "03. Workflow Specialist\\AHT Stats\\Daily Reports"
+			},
+			"FilePatternName": {
+				"type": "string",
+				"defaultValue": "Average_Handling_Time_Report_"
+			},
+			"Drive": {
+				"type": "string",
+				"defaultValue": "\\\\FCScreening\\FCScreening\\"
+			},
+			"ConfigName": {
+				"type": "string",
+				"defaultValue": "AHT"
+			},
+			"MoveFileFlag": {
+				"type": "int",
+				"defaultValue": 1
+			},
+			"FileExtension": {
+				"type": "string",
+				"defaultValue": "xlsx"
+			}
+		},
+		"variables": {
+			"varname": {
+				"type": "String"
+			},
+			"FileName": {
+				"type": "String"
+			},
+			"ProcessFileName": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "Fin Crime Excel Upload"
+		},
+		"annotations": []
+	}
+}

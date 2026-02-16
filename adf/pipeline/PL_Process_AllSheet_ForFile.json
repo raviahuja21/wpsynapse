@@ -1,0 +1,379 @@
+{
+	"name": "PL_Process_AllSheet_ForFile",
+	"properties": {
+		"activities": [
+			{
+				"name": "ForEach1",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Get Sheet informations",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Get Sheet informations').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Check CopyActivity or Lookup Activity",
+							"description": "For smaller file use Lookup activity \nFor big files > 4mb use copy activity.",
+							"type": "IfCondition",
+							"dependsOn": [],
+							"userProperties": [
+								{
+									"name": "Checklog",
+									"value": "@item().LookupFlag"
+								}
+							],
+							"typeProperties": {
+								"expression": {
+									"value": "@item().LookupFlag",
+									"type": "Expression"
+								},
+								"ifFalseActivities": [
+									{
+										"name": "Call PL_Copy Execel Sheet",
+										"type": "ExecutePipeline",
+										"dependsOn": [],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "PL_Process_CopyExcelSheet",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"P_DirName": {
+													"value": "@pipeline().parameters.P_DirName",
+													"type": "Expression"
+												},
+												"P_FileName": {
+													"value": "@pipeline().parameters.P_FileName",
+													"type": "Expression"
+												},
+												"P_ConfigSheetName": {
+													"value": "@item().ConfigSheetName\n",
+													"type": "Expression"
+												},
+												"P_Drive": {
+													"value": "@pipeline().parameters.P_Drive",
+													"type": "Expression"
+												},
+												"P_ConfigDataRange": {
+													"value": "@item().ConfigDataRange",
+													"type": "Expression"
+												},
+												"P_ConfigName": {
+													"value": "@pipeline().parameters.P_ConfigName",
+													"type": "Expression"
+												},
+												"P_DestiNationTableName": {
+													"value": "@item().DestiNationTableName",
+													"type": "Expression"
+												},
+												"P_DestiNationTableSchema": {
+													"value": "@item().DestiNationTableSchema\n",
+													"type": "Expression"
+												},
+												"P_ProcedureName": {
+													"value": "@item().ProcedureName",
+													"type": "Expression"
+												},
+												"P_Lookup": {
+													"value": "@item().LookupFlag",
+													"type": "Expression"
+												}
+											}
+										}
+									}
+								],
+								"ifTrueActivities": [
+									{
+										"name": "Call PL_Copy Execel Sheet Using Lookup",
+										"type": "ExecutePipeline",
+										"dependsOn": [],
+										"policy": {
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"pipeline": {
+												"referenceName": "PL_Process_CopyExcelSheet_UsingLookup",
+												"type": "PipelineReference"
+											},
+											"waitOnCompletion": true,
+											"parameters": {
+												"P_DirName": {
+													"value": "@pipeline().parameters.P_DirName",
+													"type": "Expression"
+												},
+												"P_FileName": {
+													"value": "@pipeline().parameters.P_FileName",
+													"type": "Expression"
+												},
+												"P_ConfigSheetName": {
+													"value": "@item().ConfigSheetName",
+													"type": "Expression"
+												},
+												"P_Drive": {
+													"value": "@pipeline().parameters.P_Drive",
+													"type": "Expression"
+												},
+												"P_ConfigDataRange": {
+													"value": "@item().ConfigDataRange",
+													"type": "Expression"
+												},
+												"P_ConfigName": {
+													"value": "@pipeline().parameters.P_ConfigName",
+													"type": "Expression"
+												},
+												"P_DestiNationTableName": {
+													"value": "@item().DestiNationTableName",
+													"type": "Expression"
+												},
+												"P_DestiNationTableSchema": {
+													"value": "@item().DestiNationTableSchema\n",
+													"type": "Expression"
+												},
+												"P_ProcedureName": {
+													"value": "@item().ProcedureName",
+													"type": "Expression"
+												},
+												"P_Lookup": {
+													"value": "@item().LookupFlag",
+													"type": "Expression"
+												}
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Get Sheet informations",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlDWSource",
+						"sqlReaderQuery": {
+							"value": "@concat('select * from  [config].[udf_Get_FileSheetInfo](''',pipeline().parameters.P_FileName,''',''',pipeline().parameters.P_ConfigName,''')')",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_synapse_generic_table",
+						"type": "DatasetReference",
+						"parameters": {
+							"SchemaName": "config",
+							"TableName": "ETLConfigSheet"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Move File to Archive",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "ForEach1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(string(pipeline().parameters.P_MoveToArchive), true)",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Copy file to Archive",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "FileServerReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "FileServerWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_filemove",
+									"type": "DatasetReference",
+									"parameters": {
+										"p_dir": {
+											"value": "@pipeline().parameters.P_Drive",
+											"type": "Expression"
+										},
+										"p_folder": {
+											"value": "@pipeline().parameters.P_DirName",
+											"type": "Expression"
+										},
+										"p_file": {
+											"value": "@pipeline().parameters.P_FileName",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_filemove",
+									"type": "DatasetReference",
+									"parameters": {
+										"p_dir": {
+											"value": "@pipeline().parameters.P_Drive",
+											"type": "Expression"
+										},
+										"p_folder": {
+											"value": "@concat(pipeline().parameters.P_DirName,'\\Archive')",
+											"type": "Expression"
+										},
+										"p_file": {
+											"value": "@pipeline().parameters.P_FileName",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						},
+						{
+							"name": "Delete file",
+							"type": "Delete",
+							"dependsOn": [
+								{
+									"activity": "Copy file to Archive",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "ds_filemove",
+									"type": "DatasetReference",
+									"parameters": {
+										"p_dir": {
+											"value": "@pipeline().parameters.P_Drive",
+											"type": "Expression"
+										},
+										"p_folder": {
+											"value": "@pipeline().parameters.P_DirName",
+											"type": "Expression"
+										},
+										"p_file": {
+											"value": "@pipeline().parameters.P_FileName",
+											"type": "Expression"
+										}
+									}
+								},
+								"enableLogging": false,
+								"storeSettings": {
+									"type": "FileServerReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"P_ConfigName": {
+				"type": "string"
+			},
+			"P_DirName": {
+				"type": "string"
+			},
+			"P_FileName": {
+				"type": "string"
+			},
+			"P_Drive": {
+				"type": "string"
+			},
+			"P_MoveToArchive": {
+				"type": "int",
+				"defaultValue": 1
+			}
+		},
+		"variables": {
+			"SheetName": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "Fin Crime Excel Upload"
+		},
+		"annotations": []
+	}
+}

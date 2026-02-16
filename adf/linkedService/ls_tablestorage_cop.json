@@ -1,0 +1,15 @@
+{
+	"name": "ls_tablestorage_cop",
+	"properties": {
+		"annotations": [],
+		"type": "AzureTableStorage",
+		"typeProperties": {
+			"serviceEndpoint": "https://adpcopdev.table.core.windows.net/"
+		},
+		"connectVia": {
+			"referenceName": "IR-Job1",
+			"type": "IntegrationRuntimeReference"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/linkedservices"
+}
